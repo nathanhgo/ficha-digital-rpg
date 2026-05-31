@@ -494,3 +494,5 @@ alter table public.system_posts disable row level security;
 
 alter table public.items add column if not exists category text not null default 'item';
 alter table public.character_inventory add column if not exists durability int not null default 20;
+
+

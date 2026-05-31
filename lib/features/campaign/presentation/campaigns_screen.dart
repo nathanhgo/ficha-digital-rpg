@@ -10,6 +10,7 @@ import 'campaigns_controller.dart';
 import '../../../core/theme/theme.dart';
 import '../../../core/utils/storage_helper.dart';
 import 'package:file_picker/file_picker.dart';
+import '../../settings/presentation/update_checker.dart';
 
 class CampaignsScreen extends ConsumerStatefulWidget {
   const CampaignsScreen({super.key});
@@ -25,6 +26,7 @@ class _CampaignsScreenState extends ConsumerState<CampaignsScreen> {
     super.initState();
     Future.microtask(() {
       ref.read(campaignsControllerProvider.notifier).loadCampaigns();
+      UpdateChecker.checkForUpdates(context);
     });
   }
 
