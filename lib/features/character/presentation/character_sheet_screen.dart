@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import '../../auth/presentation/auth_controller.dart';
 import '../data/character_repository.dart';
+import 'diary_editor_screen.dart';
 import '../../inventory/data/inventory_repository.dart';
 import '../../../core/theme/theme.dart';
 import '../../../core/utils/storage_helper.dart';
@@ -391,48 +394,63 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
     final weightController = TextEditingController(text: '1.0');
     final qtyController = TextEditingController(text: '1');
     final formKey = GlobalKey<FormState>();
+    String category = 'item';
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: SteampunkTheme.castIron,
-        title: Text('ADICIONAR ITEM', style: Theme.of(context).textTheme.titleLarge),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Nome do Item'),
-                validator: (v) => v == null || v.isEmpty ? 'Insira o nome' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: descController,
-                decoration: const InputDecoration(labelText: 'Descrição'),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: weightController,
-                      decoration: const InputDecoration(labelText: 'Peso (Kg)'),
-                      keyboardType: TextInputType.number,
+        title: Text('ADICIONAR AO INVENTÁRIO', style: Theme.of(context).textTheme.titleLarge),
+        content: StatefulBuilder(
+          builder: (context, setDialogState) => Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: category,
+                  decoration: const InputDecoration(labelText: 'Categoria'),
+                  items: const [
+                    DropdownMenuItem(value: 'item', child: Text('Item Geral')),
+                    DropdownMenuItem(value: 'equipment', child: Text('Equipamento (Durabilidade)')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) setDialogState(() => category = val);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Nome'),
+                  validator: (v) => v == null || v.isEmpty ? 'Insira o nome' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: descController,
+                  decoration: const InputDecoration(labelText: 'Descrição'),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: weightController,
+                        decoration: const InputDecoration(labelText: 'Peso (Kg)'),
+                        keyboardType: TextInputType.number,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextFormField(
-                      controller: qtyController,
-                      decoration: const InputDecoration(labelText: 'Quantidade'),
-                      keyboardType: TextInputType.number,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        controller: qtyController,
+                        decoration: const InputDecoration(labelText: 'Quantidade'),
+                        keyboardType: TextInputType.number,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -451,6 +469,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                   weight: double.tryParse(weightController.text) ?? 1.0,
                   quantity: int.tryParse(qtyController.text) ?? 1,
                   accepted: true, // Jogador adicionando a si mesmo é auto-aceito
+                  category: category,
                   campaignId: _charData!['campaign_id'],
                 );
                 if (success) {
@@ -465,6 +484,159 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
       ),
     );
   }
+
+  void _onEditItem(Map<String, dynamic> inv) {
+    final item = inv['items'];
+    if (item == null) return;
+    
+    final nameController = TextEditingController(text: item['name'] ?? '');
+    final descController = TextEditingController(text: item['description'] ?? '');
+    final weightController = TextEditingController(text: item['weight'].toString());
+    final formKey = GlobalKey<FormState>();
+    String category = item['category'] ?? 'item';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: SteampunkTheme.castIron,
+        title: Text('EDITAR ITEM', style: Theme.of(context).textTheme.titleLarge),
+        content: StatefulBuilder(
+          builder: (context, setDialogState) => Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: category,
+                  decoration: const InputDecoration(labelText: 'Categoria'),
+                  items: const [
+                    DropdownMenuItem(value: 'item', child: Text('Item Geral')),
+                    DropdownMenuItem(value: 'equipment', child: Text('Equipamento (Durabilidade)')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) setDialogState(() => category = val);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Nome'),
+                  validator: (v) => v == null || v.isEmpty ? 'Insira o nome' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: descController,
+                  decoration: const InputDecoration(labelText: 'Descrição'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: weightController,
+                  decoration: const InputDecoration(labelText: 'Peso (Kg)'),
+                  keyboardType: TextInputType.number,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('CANCELAR', style: TextStyle(color: Colors.white70)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (formKey.currentState!.validate()) {
+                final navigator = Navigator.of(ctx);
+                await _inventoryRepo.updateItem(
+                  itemId: item['id'] as String,
+                  name: nameController.text.trim(),
+                  description: descController.text.trim(),
+                  weight: double.tryParse(weightController.text) ?? 0.0,
+                  category: category,
+                );
+                await _loadInventory();
+                if (mounted) navigator.pop();
+              }
+            },
+            child: const Text('SALVAR'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onTransferItem(String inventoryId, String itemName) async {
+    final campaignId = _charData?['campaign_id'] as String?;
+    if (campaignId == null) return;
+    
+    // Buscar outros personagens da campanha
+    final response = await Supabase.instance.client
+        .from('characters')
+        .select('id, name')
+        .eq('campaign_id', campaignId)
+        .neq('id', _charData!['id']);
+        
+    final otherChars = List<Map<String, dynamic>>.from(response);
+    
+    if (otherChars.isEmpty && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nenhum outro personagem na campanha para receber o item.')),
+      );
+      return;
+    }
+    
+    String? selectedCharId;
+    
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: SteampunkTheme.castIron,
+        title: Text('ENVIAR ITEM', style: Theme.of(context).textTheme.titleLarge),
+        content: StatefulBuilder(
+          builder: (context, setDialogState) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Selecione para quem enviar o item:'),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(labelText: 'Destinatário'),
+                items: otherChars.map((c) => DropdownMenuItem(
+                  value: c['id'] as String,
+                  child: Text(c['name'] as String),
+                )).toList(),
+                onChanged: (val) {
+                  setDialogState(() => selectedCharId = val);
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('CANCELAR', style: TextStyle(color: Colors.white70)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (selectedCharId != null) {
+                final navigator = Navigator.of(ctx);
+                await _inventoryRepo.transferItem(
+                  inventoryId: inventoryId,
+                  targetCharacterId: selectedCharId!,
+                  itemName: itemName,
+                );
+                await _loadInventory();
+                if (mounted) navigator.pop();
+              }
+            },
+            child: const Text('ENVIAR'),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   // Cálculos de Peso e Sobrecarga
   double get _currentWeight {
@@ -511,7 +683,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
     final attrs = _charData!['attributes'] as Map<String, dynamic>? ?? {};
 
     return DefaultTabController(
-      length: 6,
+      length: 5,
       child: Scaffold(
         appBar: AppBar(
           title: Text('${_charData!['name']} (Nível ${_charData!['level']})'.toUpperCase()),
@@ -525,7 +697,6 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
               Tab(text: 'ATRIBUTOS'),
               Tab(text: 'PRÓTESES'),
               Tab(text: 'INVENTÁRIO'),
-              Tab(text: 'DOCUMENTOS'),
               Tab(text: 'DIÁRIO'),
             ],
           ),
@@ -544,10 +715,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
             // ABA 4: INVENTÁRIO
             _buildInventoryTab(isDead),
 
-            // ABA 5: DOCUMENTOS
-            _buildDocumentsTab(isDead),
-
-            // ABA 6: DIÁRIO & MORTE
+            // ABA 5: DIÁRIO & MORTE
             _buildDiaryTab(isDead),
           ],
         ),
@@ -1012,6 +1180,46 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
     );
   }
 
+  void _onRollAttributeDice(String attr, int mod) {
+    final roll = math.Random().nextInt(20) + 1;
+    final total = roll + mod;
+    final isCrit = roll == 20;
+    final isFail = roll == 1;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: SteampunkTheme.castIron,
+        title: Text('TESTE DE ${attr.toUpperCase()}', style: const TextStyle(color: SteampunkTheme.copper)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Resultado do d20: $roll', style: GoogleFonts.specialElite(fontSize: 18, color: isCrit ? Colors.green : (isFail ? SteampunkTheme.bloodRed : Colors.white))),
+            Text('Modificador: ${mod >= 0 ? '+' : ''}$mod', style: GoogleFonts.specialElite(fontSize: 14)),
+            const Divider(color: Colors.white24),
+            Text('TOTAL: $total', style: GoogleFonts.cinzel(fontSize: 32, fontWeight: FontWeight.bold, color: SteampunkTheme.brassGlow)),
+            if (isCrit)
+              const Padding(
+                padding: EdgeInsets.only(top: 8.0),
+                child: Text('SUCESSO CRÍTICO!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+              ),
+            if (isFail)
+              const Padding(
+                padding: EdgeInsets.only(top: 8.0),
+                child: Text('FALHA CRÍTICA!', style: TextStyle(color: SteampunkTheme.bloodRed, fontWeight: FontWeight.bold)),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('FECHAR'),
+          )
+        ],
+      ),
+    );
+  }
+
   Widget _buildAttributesTab(Map<String, dynamic> attributes) {
     final isDead = _charData!['is_dead'] == true;
     final Map<String, dynamic> skills = Map<String, dynamic>.from(_charData!['skills'] as Map? ?? {});
@@ -1061,6 +1269,10 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                       IconButton(
                         icon: const Icon(Icons.add_circle_outline, size: 20, color: SteampunkTheme.copper),
                         onPressed: isDead ? null : () => _updateAttribute(attr, val + 1),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.casino, size: 20, color: SteampunkTheme.brassGlow),
+                        onPressed: () => _onRollAttributeDice(attr, mod),
                       ),
                     ],
                   ),
@@ -1246,79 +1458,44 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
         ),
 
         Expanded(
-          child: ListView.builder(
-            itemCount: _inventory.length,
-            itemBuilder: (context, idx) {
-              final inv = _inventory[idx];
-              final item = inv['items'];
-              if (item == null) return const SizedBox.shrink();
-
-              final isAccepted = inv['accepted'] == true;
-              final weight = double.tryParse(item['weight'].toString()) ?? 0.0;
-              final qty = inv['quantity'] as int? ?? 1;
-
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                color: isAccepted ? SteampunkTheme.castIron : SteampunkTheme.copper.withValues(alpha: 0.1),
-                child: ListTile(
-                  title: Text(
-                    item['name'].toUpperCase(),
-                    style: GoogleFonts.cinzel(
-                      fontWeight: FontWeight.bold,
-                      color: isAccepted ? Colors.white : SteampunkTheme.copper,
-                    ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_inventory.where((inv) => (inv['items']?['category'] ?? 'item') == 'equipment').isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16, top: 16, bottom: 8),
+                    child: Text('EQUIPAMENTOS', style: GoogleFonts.cinzel(color: SteampunkTheme.copper, fontWeight: FontWeight.bold, fontSize: 18)),
                   ),
-                  subtitle: Text(
-                    '${item['description'] ?? 'Sem descrição'} | Peso: ${weight}Kg x $qty',
-                    style: Theme.of(context).textTheme.bodyMedium,
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _inventory.length,
+                    itemBuilder: (context, idx) {
+                      final inv = _inventory[idx];
+                      if ((inv['items']?['category'] ?? 'item') != 'equipment') return const SizedBox.shrink();
+                      return _buildInventoryCard(inv, isDead);
+                    },
                   ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (!isAccepted)
-                        ElevatedButton(
-                          onPressed: isDead
-                              ? null
-                              : () async {
-                                  await _inventoryRepo.acceptItem(inv['id'] as String);
-                                  _loadInventory();
-                                },
-                          child: const Text('ACEITAR'),
-                        )
-                      else ...[
-                        IconButton(
-                          icon: const Icon(Icons.remove, color: Colors.white60),
-                          onPressed: isDead || qty <= 1
-                              ? null
-                              : () async {
-                                  await _inventoryRepo.updateQuantity(inv['id'] as String, qty - 1);
-                                  _loadInventory();
-                                },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.add, color: Colors.white60),
-                          onPressed: isDead
-                              ? null
-                              : () async {
-                                  await _inventoryRepo.updateQuantity(inv['id'] as String, qty + 1);
-                                  _loadInventory();
-                                },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: SteampunkTheme.bloodRed),
-                          onPressed: isDead
-                              ? null
-                              : () async {
-                                  await _inventoryRepo.deleteItem(inv['id'] as String);
-                                  _loadInventory();
-                                },
-                        ),
-                      ],
-                    ],
+                ],
+                if (_inventory.where((inv) => (inv['items']?['category'] ?? 'item') != 'equipment').isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16, top: 16, bottom: 8),
+                    child: Text('ITENS', style: GoogleFonts.cinzel(color: SteampunkTheme.copper, fontWeight: FontWeight.bold, fontSize: 18)),
                   ),
-                ),
-              );
-            },
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _inventory.length,
+                    itemBuilder: (context, idx) {
+                      final inv = _inventory[idx];
+                      if ((inv['items']?['category'] ?? 'item') == 'equipment') return const SizedBox.shrink();
+                      return _buildInventoryCard(inv, isDead);
+                    },
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
 
@@ -1331,6 +1508,153 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildInventoryCard(Map<String, dynamic> inv, bool isDead) {
+    final item = inv['items'];
+    if (item == null) return const SizedBox.shrink();
+
+    final isAccepted = inv['accepted'] == true;
+    final weight = double.tryParse(item['weight'].toString()) ?? 0.0;
+    final qty = inv['quantity'] as int? ?? 1;
+
+    final cat = item['category'] ?? 'item';
+    final isEq = cat == 'equipment';
+    final durability = inv['durability'] as int? ?? 20;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: isAccepted ? SteampunkTheme.castIron : SteampunkTheme.copper.withValues(alpha: 0.1),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item['name'].toUpperCase(),
+                        style: GoogleFonts.cinzel(fontWeight: FontWeight.bold, color: isAccepted ? Colors.white : SteampunkTheme.copper),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${item['description'] ?? 'Sem descrição'} | Peso: ${weight}Kg',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+                if (isAccepted && !isDead) ...[
+                  IconButton(
+                    icon: const Icon(Icons.send, color: SteampunkTheme.brassGlow, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => _onTransferItem(inv['id'] as String, item['name']),
+                  ),
+                  const SizedBox(width: 16),
+                  IconButton(
+                    icon: const Icon(Icons.edit, color: SteampunkTheme.copper, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => _onEditItem(inv),
+                  ),
+                  const SizedBox(width: 16),
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: SteampunkTheme.bloodRed, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () async {
+                      await _inventoryRepo.deleteItem(inv['id'] as String);
+                      _loadInventory();
+                    },
+                  ),
+                ] else if (!isAccepted && !isDead) ...[
+                  ElevatedButton(
+                    onPressed: () async {
+                      await _inventoryRepo.acceptItem(inv['id'] as String);
+                      _loadInventory();
+                    },
+                    child: const Text('ACEITAR'),
+                  )
+                ]
+              ],
+            ),
+            if (isEq && isAccepted) ...[
+              const Divider(color: Colors.white10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('DURABILIDADE DO EQUIPAMENTO', style: GoogleFonts.specialElite(color: Colors.white70)),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.remove, size: 18),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: isDead ? null : () async {
+                          await _inventoryRepo.updateDurability(inv['id'] as String, durability - 1);
+                          _loadInventory();
+                        },
+                      ),
+                      const SizedBox(width: 12),
+                      Text('$durability', style: GoogleFonts.cinzel(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(width: 12),
+                      IconButton(
+                        icon: const Icon(Icons.add, size: 18),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: isDead ? null : () async {
+                          await _inventoryRepo.updateDurability(inv['id'] as String, durability + 1);
+                          _loadInventory();
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ] else if (!isEq && isAccepted) ...[
+              const Divider(color: Colors.white10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('QUANTIDADE', style: GoogleFonts.specialElite(color: Colors.white70)),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.remove, size: 18),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: isDead || qty <= 1 ? null : () async {
+                          await _inventoryRepo.updateQuantity(inv['id'] as String, qty - 1);
+                          _loadInventory();
+                        },
+                      ),
+                      const SizedBox(width: 12),
+                      Text('$qty', style: GoogleFonts.cinzel(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(width: 12),
+                      IconButton(
+                        icon: const Icon(Icons.add, size: 18),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: isDead ? null : () async {
+                          await _inventoryRepo.updateQuantity(inv['id'] as String, qty + 1);
+                          _loadInventory();
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -1355,19 +1679,55 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
           ),
           const SizedBox(height: 16),
           Expanded(
-            child: TextFormField(
-              controller: _diaryController,
-              maxLines: null,
-              expands: true,
-              readOnly: isDead,
-              decoration: const InputDecoration(
-                hintText: 'Escreva suas memórias de campanha aqui...',
-                alignLabelWithHint: true,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: SteampunkTheme.castIron,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.white12),
               ),
-              onChanged: _onDiaryChanged,
+              child: SingleChildScrollView(
+                child: _diaryController.text.isNotEmpty
+                    ? MarkdownBody(
+                        data: _diaryController.text,
+                        styleSheet: MarkdownStyleSheet(
+                          p: GoogleFonts.ebGaramond(fontSize: 16, color: Colors.white70),
+                          h1: GoogleFonts.cinzel(fontSize: 22, color: SteampunkTheme.copper, fontWeight: FontWeight.bold),
+                          h2: GoogleFonts.cinzel(fontSize: 20, color: SteampunkTheme.copper),
+                          h3: GoogleFonts.cinzel(fontSize: 18, color: SteampunkTheme.brassGlow),
+                          listBullet: const TextStyle(color: SteampunkTheme.copper),
+                        ),
+                      )
+                    : Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32.0),
+                          child: Text(
+                            'O diário está vazio.',
+                            style: GoogleFonts.ebGaramond(color: Colors.white30, fontSize: 16),
+                          ),
+                        ),
+                      ),
+              ),
             ),
           ),
           if (!isDead) ...[
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (ctx) => DiaryEditorScreen(
+                      characterId: _charData!['id'] as String,
+                      initialContent: _diaryController.text,
+                    ),
+                  ),
+                );
+                // Refresh after returning
+                _loadData();
+              },
+              icon: const Icon(Icons.edit),
+              label: const Text('EDITAR DIÁRIO'),
+            ),
             const SizedBox(height: 16),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: SteampunkTheme.bloodRed),
@@ -1376,230 +1736,6 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
             ),
           ],
         ],
-      ),
-    );
-  }
-
-  Widget _buildDocumentsTab(bool isDead) {
-    final charId = _charData!['id'] as String;
-
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: Supabase.instance.client
-          .from('character_documents')
-          .stream(primaryKey: ['id'])
-          .eq('character_id', charId)
-          .order('created_at', ascending: false),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: SteampunkTheme.copper));
-        }
-
-        final docs = snapshot.data ?? [];
-
-        return Column(
-          children: [
-            if (!isDead)
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: ElevatedButton.icon(
-                  onPressed: () => _onCreateCharacterDocument(charId),
-                  icon: const Icon(Icons.add),
-                  label: const Text('ANEXAR DOCUMENTO / LORE'),
-                ),
-              ),
-            Expanded(
-              child: docs.isEmpty
-                  ? Center(
-                      child: Text(
-                        'Nenhum documento ou lore anexado a este personagem.',
-                        style: GoogleFonts.ebGaramond(fontSize: 16, color: Colors.white30),
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: docs.length,
-                      itemBuilder: (context, idx) {
-                        final doc = docs[idx];
-                        final title = doc['title'] ?? 'Sem Título';
-                        final content = doc['content'] ?? '';
-                        final fileUrl = doc['file_url'] as String?;
-                        final isImage = fileUrl != null &&
-                            (fileUrl.toLowerCase().endsWith('.jpg') ||
-                                fileUrl.toLowerCase().endsWith('.jpeg') ||
-                                fileUrl.toLowerCase().endsWith('.png') ||
-                                fileUrl.toLowerCase().endsWith('.webp'));
-
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        title.toUpperCase(),
-                                        style: GoogleFonts.cinzel(
-                                          fontWeight: FontWeight.bold,
-                                          color: SteampunkTheme.copper,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                    ),
-                                    if (!isDead)
-                                      IconButton(
-                                        icon: const Icon(Icons.delete, color: SteampunkTheme.bloodRed, size: 20),
-                                        onPressed: () async {
-                                          await Supabase.instance.client
-                                              .from('character_documents')
-                                              .delete()
-                                              .eq('id', doc['id']);
-                                        },
-                                      ),
-                                  ],
-                                ),
-                                if (content.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    content,
-                                    style: GoogleFonts.ebGaramond(fontSize: 15, color: Colors.white70),
-                                  ),
-                                ],
-                                if (fileUrl != null && fileUrl.isNotEmpty) ...[
-                                  const SizedBox(height: 12),
-                                  if (isImage)
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(4),
-                                      child: Image.network(
-                                        fileUrl,
-                                        height: 200,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    )
-                                  else
-                                    Container(
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: SteampunkTheme.castIron,
-                                        borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(color: SteampunkTheme.copper.withValues(alpha: 0.3)),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          const Icon(Icons.attach_file, color: SteampunkTheme.copper),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: SelectableText(
-                                              fileUrl,
-                                              style: GoogleFonts.specialElite(fontSize: 12, color: Colors.blue),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _onCreateCharacterDocument(String characterId) {
-    final titleController = TextEditingController();
-    final contentController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    String? fileUrl;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: SteampunkTheme.castIron,
-          title: Text(
-            'ANEXAR DOCUMENTO / LORE',
-            style: Theme.of(context).textTheme.titleLarge,
-            textAlign: TextAlign.center,
-          ),
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: titleController,
-                    decoration: const InputDecoration(labelText: 'Título do Documento'),
-                    validator: (v) => v == null || v.isEmpty ? 'Insira um título' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: contentController,
-                    decoration: const InputDecoration(labelText: 'Conteúdo / Lore'),
-                    maxLines: 4,
-                  ),
-                  const SizedBox(height: 16),
-                  if (fileUrl != null && fileUrl!.isNotEmpty) ...[
-                    const Icon(Icons.attach_file, color: SteampunkTheme.copper, size: 32),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Arquivo carregado com sucesso!',
-                      style: GoogleFonts.ebGaramond(color: Colors.green),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      final url = await SupabaseStorageHelper.pickAndUploadFile();
-                      if (url != null) {
-                        setDialogState(() {
-                          fileUrl = url;
-                        });
-                      }
-                    },
-                    icon: const Icon(Icons.upload_file),
-                    label: Text(fileUrl == null ? 'CARREGAR ARQUIVO' : 'ALTERAR ARQUIVO'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('CANCELAR', style: TextStyle(color: Colors.white70)),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  final navigator = Navigator.of(ctx);
-                  try {
-                    await Supabase.instance.client.from('character_documents').insert({
-                      'character_id': characterId,
-                      'title': titleController.text.trim(),
-                      'content': contentController.text.trim(),
-                      'file_url': fileUrl,
-                    });
-                    if (mounted) navigator.pop();
-                  } catch (e) {
-                    debugPrint("Erro ao anexar documento: $e");
-                  }
-                }
-              },
-              child: const Text('ANEXAR'),
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -54,9 +54,10 @@ class _ItemsCatalogScreenState extends ConsumerState<ItemsCatalogScreen> {
   void _onCreateItem() {
     final nameCtrl = TextEditingController();
     final descCtrl = TextEditingController();
-    final weightCtrl = TextEditingController(text: '0.5');
-    String? imageUrl;
+    final weightCtrl = TextEditingController(text: '1.0');
     final formKey = GlobalKey<FormState>();
+    String? imageUrl;
+    String category = 'item';
 
     showDialog(
       context: context,
@@ -73,6 +74,18 @@ class _ItemsCatalogScreenState extends ConsumerState<ItemsCatalogScreen> {
                   // Campaign selector
                   _buildCampaignDropdown(
                     onChanged: (v) => setDialogState(() => _selectedCampaignId = v),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: category,
+                    decoration: const InputDecoration(labelText: 'Categoria'),
+                    items: const [
+                      DropdownMenuItem(value: 'item', child: Text('Item Geral')),
+                      DropdownMenuItem(value: 'equipment', child: Text('Equipamento (Durabilidade)')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setDialogState(() => category = val);
+                    },
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -131,6 +144,7 @@ class _ItemsCatalogScreenState extends ConsumerState<ItemsCatalogScreen> {
                     name: nameCtrl.text.trim(),
                     description: descCtrl.text.trim(),
                     weight: double.parse(weightCtrl.text),
+                    category: category,
                     imageUrl: imageUrl,
                   );
                   if (result != null && mounted) {

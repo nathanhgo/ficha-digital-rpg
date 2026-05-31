@@ -81,6 +81,60 @@ class _DiceScreenState extends State<DiceScreen> {
     });
   }
 
+  void _editDiceCount(int sides, int currentCount) {
+    final ctrl = TextEditingController(text: currentCount.toString());
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: SteampunkTheme.castIron,
+        title: Text('Quantidade (d$sides)', style: const TextStyle(color: SteampunkTheme.copper)),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Quantidade'),
+          onSubmitted: (v) {
+            final val = int.tryParse(v);
+            if (val != null && val >= 0) {
+              setState(() => _selectedDice[sides] = val);
+            }
+            Navigator.pop(ctx);
+          },
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+        ],
+      ),
+    );
+  }
+
+  void _editBonus() {
+    final ctrl = TextEditingController(text: _bonus.toString());
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: SteampunkTheme.castIron,
+        title: const Text('Bônus/Penalidade', style: TextStyle(color: SteampunkTheme.copper)),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: const TextInputType.numberWithOptions(signed: true),
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Valor'),
+          onSubmitted: (v) {
+            final val = int.tryParse(v);
+            if (val != null) {
+              setState(() => _bonus = val);
+            }
+            Navigator.pop(ctx);
+          },
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -124,9 +178,15 @@ class _DiceScreenState extends State<DiceScreen> {
                         icon: const Icon(Icons.remove_circle_outline, color: SteampunkTheme.bloodRed),
                         onPressed: () => setState(() => _bonus--),
                       ),
-                      Text(
-                        '$_bonus',
-                        style: GoogleFonts.specialElite(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                      InkWell(
+                        onTap: _editBonus,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                          child: Text(
+                            '$_bonus',
+                            style: GoogleFonts.specialElite(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                        ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.add_circle_outline, color: Colors.green),
@@ -234,9 +294,15 @@ class _DiceScreenState extends State<DiceScreen> {
                   constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                   padding: EdgeInsets.zero,
                 ),
-                Text(
-                  '$count',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                InkWell(
+                  onTap: () => _editDiceCount(sides, count),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                    child: Text(
+                      '$count',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.add, size: 16),

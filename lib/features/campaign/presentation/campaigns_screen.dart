@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -318,12 +319,27 @@ class _CampaignsScreenState extends ConsumerState<CampaignsScreen> {
                                                     ),
                                                   ],
                                                   const SizedBox(height: 6),
-                                                  SelectableText(
-                                                    'Código: ${camp['id']}',
-                                                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                                                          color: Colors.white30,
-                                                          fontSize: 10,
+                                                  Row(
+                                                    children: [
+                                                      Expanded(
+                                                        child: SelectableText(
+                                                          'Código: ${camp['id']}',
+                                                          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                                                color: Colors.white30,
+                                                                fontSize: 10,
+                                                              ),
                                                         ),
+                                                      ),
+                                                      IconButton(
+                                                        icon: const Icon(Icons.copy, size: 16, color: SteampunkTheme.copper),
+                                                        onPressed: () {
+                                                          Clipboard.setData(ClipboardData(text: camp['id'].toString()));
+                                                          ScaffoldMessenger.of(context).showSnackBar(
+                                                            const SnackBar(content: Text('Código copiado para a área de transferência!')),
+                                                          );
+                                                        },
+                                                      ),
+                                                    ],
                                                   ),
                                                 ],
                                               ),

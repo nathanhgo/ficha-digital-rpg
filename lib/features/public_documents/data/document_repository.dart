@@ -72,7 +72,7 @@ class DocumentRepository {
     }
   }
 
-  Future<void> updateDocumentStatus(
+  Future<bool> updateDocumentStatus(
     String documentId,
     String status, {
     String? rejectionReason,
@@ -81,7 +81,7 @@ class DocumentRepository {
       await _client.from('public_documents').update({
         'status': status,
         'rejection_reason': rejectionReason,
-      }).eq('id', documentId);
+      }).eq('id', documentId).select();
 
       // Notificar o autor e outros jogadores
       try {
@@ -120,8 +120,34 @@ class DocumentRepository {
       } catch (e) {
         debugPrint("Erro ao notificar status de documento: $e");
       }
+      return true;
     } catch (e) {
       debugPrint("Erro ao atualizar status do documento: $e");
+      return false;
+    }
+  }
+
+  Future<bool> updateDocument({
+    required String documentId,
+    required String title,
+    required String content,
+    required String category,
+    String? imageUrl,
+  }) async {
+    try {
+      final updates = {
+        'title': title,
+        'content': content,
+        'category': category,
+      };
+      if (imageUrl != null) {
+        updates['image_url'] = imageUrl;
+      }
+      await _client.from('public_documents').update(updates).eq('id', documentId);
+      return true;
+    } catch (e) {
+      debugPrint("Erro ao atualizar documento: $e");
+      return false;
     }
   }
 }

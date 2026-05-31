@@ -8,6 +8,7 @@ import '../data/session_repository.dart';
 import '../../character/data/character_repository.dart';
 import '../../inventory/data/inventory_repository.dart';
 import '../../public_documents/data/document_repository.dart';
+import '../../public_documents/presentation/documents_tab.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../../core/theme/theme.dart';
 import '../../notifications/presentation/notification_badge_icon.dart';
@@ -261,6 +262,7 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
     final nameController = TextEditingController();
     final descController = TextEditingController();
     final weightController = TextEditingController(text: '1.0');
+    String category = 'item';
 
     if (!mounted) return;
     showDialog(
@@ -319,6 +321,18 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
                     onChanged: (v) => setDialogState(() => selectedTemplate = v),
                   ),
                 ] else ...[
+                  DropdownButtonFormField<String>(
+                    value: category,
+                    decoration: const InputDecoration(labelText: 'Categoria'),
+                    items: const [
+                      DropdownMenuItem(value: 'item', child: Text('Item Geral')),
+                      DropdownMenuItem(value: 'equipment', child: Text('Equipamento (Durabilidade)')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setDialogState(() => category = val);
+                    },
+                  ),
+                  const SizedBox(height: 12),
                   TextFormField(controller: nameController, decoration: const InputDecoration(labelText: 'Nome do Item')),
                   const SizedBox(height: 8),
                   TextFormField(controller: descController, decoration: const InputDecoration(labelText: 'Descrição')),
@@ -355,6 +369,7 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
                     weight: double.tryParse(weightController.text) ?? 1.0,
                     quantity: int.tryParse(qtyController.text) ?? 1,
                     accepted: false,
+                    category: category,
                     campaignId: widget.campaignId,
                   );
                 }
@@ -463,13 +478,7 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
                 ),
           actions: [
             NotificationBadgeIcon(userId: authState.profile?['id'] as String? ?? ''),
-            IconButton(
-              icon: const Icon(Icons.description_outlined),
-              tooltip: 'Mural de Documentos',
-              onPressed: () {
-                context.push('/campaigns/documents?campaignId=${widget.campaignId}');
-              },
-            ),
+
             IconButton(
               icon: const Icon(Icons.refresh),
               tooltip: 'Atualizar',
@@ -495,21 +504,45 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
         title: const Text('MONITOR DO MESTRE'),
         actions: [
           NotificationBadgeIcon(userId: authState.profile?['id'] as String? ?? ''),
-          IconButton(
-            icon: const Icon(Icons.description_outlined),
-            tooltip: 'Mural de Documentos',
-            onPressed: () {
-              context.push('/campaigns/documents?campaignId=${widget.campaignId}');
-            },
-          ),
         ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          color: SteampunkTheme.leatherBark,
-        ),
+      body: DefaultTabController(
+        length: 2,
         child: Column(
           children: [
+            Container(
+              color: SteampunkTheme.castIron,
+              child: TabBar(
+                labelColor: SteampunkTheme.copper,
+                unselectedLabelColor: Colors.white60,
+                indicatorColor: SteampunkTheme.copper,
+                tabs: const [
+                  Tab(icon: Icon(Icons.dashboard_outlined), text: 'SESSÃO'),
+                  Tab(icon: Icon(Icons.menu_book), text: 'MURAL'),
+                ],
+              ),
+            ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _buildMasterSessionTab(authState),
+                  _buildMuralTab(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMasterSessionTab(var authState) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: SteampunkTheme.leatherBark,
+      ),
+      child: Column(
+        children: [
             // Painel da Sessão Ativa
             Container(
               padding: const EdgeInsets.all(16),
@@ -636,20 +669,23 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
                       ),
                     ),
                     const SizedBox(width: 16),
-                    Column(
-                      children: [
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.star_outline),
-                          label: const Text('DAR XP'),
-                          onPressed: _onAwardXp,
-                        ),
-                        const SizedBox(height: 8),
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.card_giftcard),
-                          label: const Text('ENVIAR ITEM'),
-                          onPressed: _onDistributeItem,
-                        ),
-                      ],
+                    IntrinsicWidth(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.star_outline),
+                            label: const Text('DAR XP'),
+                            onPressed: _onAwardXp,
+                          ),
+                          const SizedBox(height: 8),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.card_giftcard),
+                            label: const Text('ENVIAR ITEM'),
+                            onPressed: _onDistributeItem,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -660,8 +696,7 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
               ),
           ],
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildSessionHistoryMaster() {
@@ -829,7 +864,7 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Força Vital (FV):', style: Theme.of(context).textTheme.bodyMedium),
+                Text('FV:', style: Theme.of(context).textTheme.bodyMedium),
                 Text(
                   '${char['current_fv']} / ${char['max_fv']}',
                   style: GoogleFonts.specialElite(color: SteampunkTheme.bloodRed, fontWeight: FontWeight.bold),
@@ -840,7 +875,7 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Pontos Mentais (PM):', style: Theme.of(context).textTheme.bodyMedium),
+                Text('PM:', style: Theme.of(context).textTheme.bodyMedium),
                 Text(
                   '${char['current_pm'] ?? 100} / ${char['max_pm'] ?? 100}',
                   style: GoogleFonts.specialElite(color: Colors.blueAccent, fontWeight: FontWeight.bold),
@@ -994,7 +1029,7 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
               tabs: const [
                 Tab(icon: Icon(Icons.dashboard_outlined), text: 'SESSÃO'),
                 Tab(icon: Icon(Icons.history), text: 'HISTÓRICO'),
-                Tab(icon: Icon(Icons.menu_book), text: 'DOCUMENTOS'),
+                Tab(icon: Icon(Icons.menu_book), text: 'MURAL'),
               ],
             ),
           ),
@@ -1003,7 +1038,7 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
               children: [
                 _buildPlayerStatsTab(isDead),
                 _buildSessionHistoryPlayer(),
-                _buildDocumentsList(),
+                _buildMuralTab(),
               ],
             ),
           ),
@@ -1373,129 +1408,10 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
     );
   }
 
-  Widget _buildDocumentsList() {
-    final docRepo = DocumentRepository();
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: docRepo.fetchDocuments(widget.campaignId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: SteampunkTheme.copper));
-        }
-        final docs = snapshot.data ?? [];
-        final approvedDocs = docs.where((d) => d['status'] == 'approved').toList();
-
-        if (approvedDocs.isEmpty) {
-          return const Center(
-            child: Text(
-              'Nenhum documento público compartilhado nesta campanha.',
-              style: TextStyle(color: Colors.white38),
-            ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: approvedDocs.length,
-          itemBuilder: (context, idx) {
-            final doc = approvedDocs[idx];
-            final title = doc['title'] as String;
-            final category = doc['category'] as String? ?? 'DOCUMENTO';
-            final content = doc['content'] as String? ?? '';
-            final author = doc['profiles']?['username'] as String? ?? 'Mestre';
-            final imageUrl = doc['image_url'] as String?;
-
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                title: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: SteampunkTheme.copper.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: SteampunkTheme.copper, width: 1),
-                      ),
-                      child: Text(
-                        category.toUpperCase(),
-                        style: const TextStyle(fontSize: 10, color: SteampunkTheme.copper, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        title.toUpperCase(),
-                        style: GoogleFonts.cinzel(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                    ),
-                  ],
-                ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Text(
-                    content.length > 100 ? '${content.substring(0, 100)}...' : content,
-                    style: GoogleFonts.ebGaramond(fontSize: 16),
-                  ),
-                ),
-                trailing: const Icon(Icons.menu_book, color: SteampunkTheme.copper),
-                onTap: () => _viewDocumentDetails(title, category, content, author, imageUrl),
-              ),
-            );
-          },
-        );
-      },
-    );
+  Widget _buildMuralTab() {
+    return DocumentsTab(campaignId: widget.campaignId);
   }
 
-  void _viewDocumentDetails(String title, String category, String content, String author, String? imageUrl) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: SteampunkTheme.castIron,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                title.toUpperCase(),
-                style: GoogleFonts.cinzel(fontWeight: FontWeight.bold, color: SteampunkTheme.copper),
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.close, color: Colors.white70),
-              onPressed: () => Navigator.pop(ctx),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (imageUrl != null && imageUrl.isNotEmpty) ...[
-                Image.network(
-                  imageUrl,
-                  height: 200,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-                ),
-                const SizedBox(height: 12),
-              ],
-              Text(
-                'Autor: $author | Categoria: ${category.toUpperCase()}',
-                style: const TextStyle(fontSize: 12, color: Colors.white38),
-              ),
-              const Divider(color: Colors.white12),
-              const SizedBox(height: 8),
-              Text(
-                content,
-                style: GoogleFonts.ebGaramond(fontSize: 18, height: 1.4),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 /// Inline editor for the master to write a player-visible session summary

@@ -1,9 +1,11 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:despertar_caos_app/main.dart';
 import 'package:despertar_caos_app/features/auth/data/auth_repository.dart';
 import 'package:despertar_caos_app/features/auth/presentation/auth_controller.dart';
+import 'package:despertar_caos_app/features/auth/presentation/login_screen.dart';
 
 class FakeAuthRepository implements AuthRepository {
   @override
@@ -38,7 +40,9 @@ void main() {
         overrides: [
           authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
         ],
-        child: const DespertarCaosApp(),
+        child: const MaterialApp(
+          home: LoginScreen(),
+        ),
       ),
     );
     await tester.pumpAndSettle();

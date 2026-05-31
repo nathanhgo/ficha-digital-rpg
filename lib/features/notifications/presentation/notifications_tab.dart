@@ -18,6 +18,14 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
   final _notiRepo = NotificationRepository();
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.userId.isNotEmpty) {
+      _notiRepo.markAllAsRead(widget.userId);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     if (widget.userId.isEmpty) {
       return const Center(child: Text("Usuário não autenticado."));
@@ -158,15 +166,6 @@ class _GenericNotificationCard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      if (!isRead)
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          icon: const Icon(Icons.done, size: 20, color: Colors.green),
-                          tooltip: 'Marcar como lida',
-                          onPressed: () => notiRepo.markAsRead(id),
-                        ),
-                      if (!isRead) const SizedBox(width: 16),
                       IconButton(
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),

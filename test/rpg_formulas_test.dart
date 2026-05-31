@@ -17,6 +17,10 @@ int calculateSkillPoints(int attributeValue) {
   return attributeValue * 3;
 }
 
+int calculateModifier(int attributeValue) {
+  return (attributeValue - 10) ~/ 2;
+}
+
 void main() {
   group('Fórmulas de Ficha do RPG - Despertar do Caos', () {
     test('Cálculo de FV Máxima (Constituição * Dado de Vida)', () {
@@ -46,6 +50,15 @@ void main() {
       expect(calculateSkillPoints(12), 36);
       expect(calculateSkillPoints(15), 45);
       expect(calculateSkillPoints(8), 24);
+    });
+
+    test('Cálculo de Modificador de Atributo ((Atributo - 10) / 2)', () {
+      expect(calculateModifier(10), 0);
+      expect(calculateModifier(12), 1);
+      expect(calculateModifier(13), 1);
+      expect(calculateModifier(8), -1);
+      expect(calculateModifier(1), -4);
+      expect(calculateModifier(20), 5);
     });
   });
 }

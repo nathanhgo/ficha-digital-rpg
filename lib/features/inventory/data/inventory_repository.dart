@@ -28,6 +28,7 @@ class InventoryRepository {
     required double weight,
     required int quantity,
     required bool accepted,
+    required String category,
     String? campaignId,
   }) async {
     try {
@@ -37,18 +38,27 @@ class InventoryRepository {
         'name': name,
         'description': description,
         'weight': weight,
+        'category': category,
         'is_template': false,
       }).select().single();
 
       final itemId = itemResponse['id'] as String;
 
       // 2. Inserir no character_inventory
-      await _client.from('character_inventory').insert({
+      final invData = {
         'character_id': characterId,
         'item_id': itemId,
         'quantity': quantity,
         'accepted': accepted,
-      });
+      };
+      
+      // Default database is 20 for durability. If category is item, we still need to insert a value 
+      // or omit it. Since we omit it, DB default will handle it.
+      if (category == 'equipment') {
+        invData['durability'] = 20;
+      }
+
+      await _client.from('character_inventory').insert(invData);
 
       if (!accepted) {
         try {
@@ -125,6 +135,7 @@ class InventoryRepository {
     required String name,
     required String description,
     required double weight,
+    required String category,
     String? imageUrl,
   }) async {
     try {
@@ -133,6 +144,7 @@ class InventoryRepository {
         'name': name,
         'description': description,
         'weight': weight,
+        'category': category,
         'image_url': imageUrl,
         'is_template': true,
       }).select().single();
@@ -171,6 +183,63 @@ class InventoryRepository {
       return true;
     } catch (e) {
       debugPrint("Erro ao enviar item template: $e");
+      return false;
+    }
+  }
+
+  Future<void> updateDurability(String inventoryId, int newDurability) async {
+    try {
+      await _client
+          .from('character_inventory')
+          .update({'durability': newDurability})
+          .eq('id', inventoryId);
+    } catch (e) {
+      debugPrint("Erro ao atualizar durabilidade: $e");
+    }
+  }
+
+  Future<void> updateItem({
+    required String itemId,
+    required String name,
+    required String description,
+    required double weight,
+    required String category,
+  }) async {
+    try {
+      await _client.from('items').update({
+        'name': name,
+        'description': description,
+        'weight': weight,
+        'category': category,
+      }).eq('id', itemId);
+    } catch (e) {
+      debugPrint("Erro ao atualizar item: $e");
+    }
+  }
+
+  Future<bool> transferItem({
+    required String inventoryId,
+    required String targetCharacterId,
+    required String itemName,
+  }) async {
+    try {
+      await _client.from('character_inventory').update({
+        'character_id': targetCharacterId,
+        'accepted': false,
+      }).eq('id', inventoryId);
+      
+      final charDoc = await _client.from('characters').select('owner_id, name').eq('id', targetCharacterId).single();
+      final ownerId = charDoc['owner_id'] as String;
+      final charName = charDoc['name'] as String;
+      
+      await _client.from('notifications').insert({
+        'user_id': ownerId,
+        'title': 'Nova Transferência de Item!',
+        'message': 'Um colega enviou "$itemName" para $charName. Aceite ou rejeite na sua ficha.',
+      });
+      return true;
+    } catch (e) {
+      debugPrint("Erro ao transferir item: $e");
       return false;
     }
   }

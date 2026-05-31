@@ -24,28 +24,10 @@ class NotificationBadgeIcon extends ConsumerWidget {
         
         final iconWidget = unread == 0 
             ? const Icon(Icons.notifications)
-            : Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  const Icon(Icons.notifications),
-                  Positioned(
-                    right: -2,
-                    top: -2,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: SteampunkTheme.bloodRed,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
-                      child: Text(
-                        '$unread',
-                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                ],
+            : Badge(
+                label: Text('$unread', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 9)),
+                backgroundColor: SteampunkTheme.bloodRed,
+                child: const Icon(Icons.notifications),
               );
 
         return IconButton(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../data/document_repository.dart';
@@ -85,7 +86,11 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: contentController,
-                    decoration: const InputDecoration(labelText: 'Conteúdo / Relato'),
+                    textAlignVertical: TextAlignVertical.top,
+                    decoration: const InputDecoration(
+                      labelText: 'Conteúdo (Suporta Markdown)',
+                      alignLabelWithHint: true,
+                    ),
                     maxLines: 5,
                     validator: (v) => v == null || v.isEmpty ? 'Insira o conteúdo' : null,
                   ),
@@ -191,9 +196,170 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     );
   }
 
+  void _onEditDocument(Map<String, dynamic> doc) {
+    final titleController = TextEditingController(text: doc['title'] ?? '');
+    final contentController = TextEditingController(text: doc['content'] ?? '');
+    String category = doc['category'] ?? 'lore';
+    String? fileUrl = doc['image_url'];
+    bool uploading = false;
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: SteampunkTheme.castIron,
+        title: Text('EDITAR DOCUMENTO', style: Theme.of(context).textTheme.titleLarge),
+        content: SizedBox(
+          width: 400,
+          child: StatefulBuilder(
+            builder: (ctx2, setDialogState) => Form(
+              key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: titleController,
+                    decoration: const InputDecoration(labelText: 'Título do Documento'),
+                    validator: (v) => v == null || v.isEmpty ? 'Insira o título' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: category,
+                    decoration: const InputDecoration(labelText: 'Categoria'),
+                    items: const [
+                      DropdownMenuItem(value: 'jornal', child: Text('Gazeta / Jornal')),
+                      DropdownMenuItem(value: 'lore', child: Text('História / Lore')),
+                      DropdownMenuItem(value: 'mapa', child: Text('Mapa / Localização')),
+                      DropdownMenuItem(value: 'pesquisa', child: Text('Pesquisa / Engenharia')),
+                      DropdownMenuItem(value: 'outros', child: Text('Outros')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        setDialogState(() {
+                          category = val;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: contentController,
+                    textAlignVertical: TextAlignVertical.top,
+                    decoration: const InputDecoration(
+                      labelText: 'Conteúdo (Suporta Markdown)',
+                      alignLabelWithHint: true,
+                    ),
+                    maxLines: 5,
+                    validator: (v) => v == null || v.isEmpty ? 'Insira o conteúdo' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  if (fileUrl != null && fileUrl!.isNotEmpty) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: Image.network(
+                        fileUrl!,
+                        height: 100,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          padding: const EdgeInsets.all(12),
+                          color: Colors.white10,
+                          child: Row(
+                            children: [
+                              const Icon(Icons.insert_drive_file, color: SteampunkTheme.copper),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Arquivo anexado com sucesso.',
+                                  style: GoogleFonts.ebGaramond(color: Colors.white70, fontSize: 13),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  if (uploading)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: CircularProgressIndicator(color: SteampunkTheme.copper),
+                    )
+                  else
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: SteampunkTheme.castIron,
+                        foregroundColor: SteampunkTheme.copper,
+                        side: const BorderSide(color: SteampunkTheme.copper, width: 1),
+                      ),
+                      onPressed: () async {
+                        setDialogState(() => uploading = true);
+                        final url = await SupabaseStorageHelper.pickAndUploadFile(
+                          fileType: FileType.any,
+                        );
+                        setDialogState(() {
+                          if (url != null) fileUrl = url;
+                          uploading = false;
+                        });
+                      },
+                      icon: Icon(fileUrl == null || fileUrl!.isEmpty ? Icons.attach_file : Icons.change_circle_outlined, size: 16),
+                      label: Text(
+                        fileUrl == null || fileUrl!.isEmpty ? 'ANEXAR IMAGEM / ARQUIVO' : 'ALTERAR ANEXO',
+                        style: GoogleFonts.cinzel(fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('CANCELAR', style: TextStyle(color: Colors.white70)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (formKey.currentState!.validate()) {
+                final navigator = Navigator.of(ctx);
+
+                final success = await _docRepo.updateDocument(
+                  documentId: doc['id'] as String,
+                  title: titleController.text.trim(),
+                  content: contentController.text.trim(),
+                  category: category,
+                  imageUrl: fileUrl,
+                );
+
+                if (success) {
+                  await _loadDocuments();
+                  if (mounted) navigator.pop();
+                }
+              }
+            },
+            child: const Text('SALVAR'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _onModerate(String docId, String status) async {
-    await _docRepo.updateDocumentStatus(docId, status);
-    await _loadDocuments();
+    final success = await _docRepo.updateDocumentStatus(docId, status);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Status atualizado com sucesso!' : 'Erro ao atualizar status.'),
+          backgroundColor: success ? SteampunkTheme.copper : SteampunkTheme.bloodRed,
+        ),
+      );
+    }
+    if (success) {
+      await _loadDocuments();
+    }
   }
 
   @override
@@ -311,6 +477,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                                 final doc = approvedDocs[idx];
                                 final author = doc['profiles']?['username'] ?? 'Desconhecido';
                                 final cat = doc['category'] ?? 'outros';
+                                final isAuthor = doc['author_id'] == authState.profile?['id'];
+                                final canEdit = role == 'master' || isAuthor;
 
                                 return Card(
                                   margin: const EdgeInsets.only(bottom: 16),
@@ -362,10 +530,29 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                                               ),
                                               const SizedBox(height: 12),
                                             ],
-                                            Text(
-                                              doc['content'] ?? '',
-                                              style: Theme.of(context).textTheme.bodyMedium,
+                                            MarkdownBody(
+                                              data: doc['content'] ?? '',
+                                              styleSheet: MarkdownStyleSheet(
+                                                p: Theme.of(context).textTheme.bodyMedium,
+                                                h1: GoogleFonts.cinzel(fontSize: 22, color: SteampunkTheme.copper, fontWeight: FontWeight.bold),
+                                                h2: GoogleFonts.cinzel(fontSize: 20, color: SteampunkTheme.copper),
+                                                h3: GoogleFonts.cinzel(fontSize: 18, color: SteampunkTheme.brassGlow),
+                                                listBullet: const TextStyle(color: SteampunkTheme.copper),
+                                              ),
                                             ),
+                                            if (canEdit) ...[
+                                              const SizedBox(height: 16),
+                                              ElevatedButton.icon(
+                                                onPressed: () => _onEditDocument(doc),
+                                                icon: const Icon(Icons.edit, size: 16),
+                                                label: const Text('EDITAR DOCUMENTO'),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: SteampunkTheme.castIron,
+                                                  foregroundColor: SteampunkTheme.brassGlow,
+                                                  side: const BorderSide(color: SteampunkTheme.brassGlow, width: 1),
+                                                ),
+                                              ),
+                                            ],
                                           ],
                                         ),
                                       ),

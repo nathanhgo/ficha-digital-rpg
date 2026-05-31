@@ -488,3 +488,9 @@ create table public.system_posts (
 
 alter table public.system_posts disable row level security;
 
+-- ==========================================
+-- SPRINT 4: INVENTÁRIO AVANÇADO
+-- ==========================================
+
+alter table public.items add column if not exists category text not null default 'item';
+alter table public.character_inventory add column if not exists durability int not null default 20;

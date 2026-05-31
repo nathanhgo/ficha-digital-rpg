@@ -8,7 +8,8 @@ Aplicativo móvel desenvolvido para gerenciar campanhas, fichas de personagens, 
 
 O aplicativo adota uma identidade visual **Steampunk/Medieval** rústica, inspirada em engrenagens de cobre, couro envelhecido e anotações feitas em pergaminhos antigos, ideal para a imersão na mesa de jogo:
 
-![Mockup do Aplicativo](character_sheet_steampunk.png)
+![Mockup do Aplicativo](./ai-build-instructions/character_sheet_steampunk.png)
+*Concept inicial feito com IA.*
 
 ---
 

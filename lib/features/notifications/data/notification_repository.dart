@@ -30,6 +30,18 @@ class NotificationRepository {
     }
   }
 
+  Future<void> markAllAsRead(String userId) async {
+    try {
+      await _client
+          .from('notifications')
+          .update({'is_read': true})
+          .eq('user_id', userId)
+          .eq('is_read', false);
+    } catch (e) {
+      debugPrint("Erro ao marcar todas notificações como lidas: $e");
+    }
+  }
+
   Future<void> deleteNotification(String id) async {
     try {
       await _client

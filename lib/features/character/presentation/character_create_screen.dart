@@ -68,6 +68,39 @@ class _CharacterCreateScreenState extends ConsumerState<CharacterCreateScreen> {
     });
   }
 
+  void _editAttribute(String attr) {
+    final ctrl = TextEditingController(text: _attributes[attr].toString());
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: SteampunkTheme.castIron,
+        title: Text('Editar $attr', style: const TextStyle(color: SteampunkTheme.copper)),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Valor'),
+          onSubmitted: (v) {
+            final val = int.tryParse(v);
+            if (val != null && val >= 0 && val <= 30) {
+              setState(() {
+                final diff = val - _attributes[attr]!;
+                if (diff <= _pointsRemaining || diff < 0) {
+                  _attributes[attr] = val;
+                }
+              });
+            }
+            Navigator.pop(ctx);
+          },
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+        ],
+      ),
+    );
+  }
+
+
   void _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -365,12 +398,18 @@ class _CharacterCreateScreenState extends ConsumerState<CharacterCreateScreen> {
                                         onPressed: () => _adjustAttribute(attr, -1),
                                       ),
                                       const SizedBox(width: 8),
-                                      Text(
-                                        '$val',
-                                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                                      InkWell(
+                                        onTap: () => _editAttribute(attr),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                                          child: Text(
+                                            '$val',
+                                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                          ),
+                                        ),
                                       ),
                                       const SizedBox(width: 8),
                                       IconButton(

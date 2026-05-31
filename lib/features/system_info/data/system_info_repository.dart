@@ -35,4 +35,17 @@ class SystemInfoRepository {
       return false;
     }
   }
+
+  Future<bool> updatePost(String postId, String title, String content) async {
+    try {
+      await _client.from('system_posts').update({
+        'title': title,
+        'content': content,
+      }).eq('id', postId);
+      return true;
+    } catch (e) {
+      debugPrint("Erro ao atualizar post do sistema: $e");
+      return false;
+    }
+  }
 }
