@@ -19,10 +19,12 @@ class PublicDocumentEditorScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<PublicDocumentEditorScreen> createState() => _PublicDocumentEditorScreenState();
+  ConsumerState<PublicDocumentEditorScreen> createState() =>
+      _PublicDocumentEditorScreenState();
 }
 
-class _PublicDocumentEditorScreenState extends ConsumerState<PublicDocumentEditorScreen> {
+class _PublicDocumentEditorScreenState
+    extends ConsumerState<PublicDocumentEditorScreen> {
   final _docRepo = DocumentRepository();
   final _titleCtrl = TextEditingController();
   final _contentCtrl = TextEditingController();
@@ -53,7 +55,9 @@ class _PublicDocumentEditorScreenState extends ConsumerState<PublicDocumentEdito
 
   Future<void> _pickAndUploadFile() async {
     setState(() => _isUploading = true);
-    final url = await SupabaseStorageHelper.pickAndUploadFile(fileType: FileType.any);
+    final url = await SupabaseStorageHelper.pickAndUploadFile(
+      fileType: FileType.any,
+    );
     setState(() {
       if (url != null) _fileUrl = url;
       _isUploading = false;
@@ -67,10 +71,10 @@ class _PublicDocumentEditorScreenState extends ConsumerState<PublicDocumentEdito
     final authState = ref.read(authControllerProvider);
     final userId = authState.profile?['id'] ?? '';
     final role = authState.profile?['role'] ?? 'player';
-    
+
     // Mestres criam auto-aprovados, Jogadores criam como pendentes
     final initialStatus = role == 'master' ? 'approved' : 'pending';
-    
+
     bool success = false;
     if (widget.existingDoc == null) {
       success = await _docRepo.createDocument(
@@ -97,7 +101,11 @@ class _PublicDocumentEditorScreenState extends ConsumerState<PublicDocumentEdito
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(widget.existingDoc == null ? 'Documento enviado!' : 'Documento atualizado!'),
+          content: Text(
+            widget.existingDoc == null
+                ? 'Documento enviado!'
+                : 'Documento atualizado!',
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -114,30 +122,42 @@ class _PublicDocumentEditorScreenState extends ConsumerState<PublicDocumentEdito
 
   @override
   Widget build(BuildContext context) {
-    final isImage = _fileUrl != null && 
-      (_fileUrl!.toLowerCase().endsWith('.jpg') || 
-       _fileUrl!.toLowerCase().endsWith('.png') || 
-       _fileUrl!.toLowerCase().endsWith('.jpeg') || 
-       _fileUrl!.toLowerCase().endsWith('.webp'));
+    final isImage =
+        _fileUrl != null &&
+        (_fileUrl!.toLowerCase().endsWith('.jpg') ||
+            _fileUrl!.toLowerCase().endsWith('.png') ||
+            _fileUrl!.toLowerCase().endsWith('.jpeg') ||
+            _fileUrl!.toLowerCase().endsWith('.webp'));
 
     return Scaffold(
       backgroundColor: SteampunkTheme.castIron,
       appBar: AppBar(
-        title: Text(widget.existingDoc == null ? 'NOVO DOCUMENTO' : 'EDITAR DOCUMENTO'),
+        title: Text(
+          widget.existingDoc == null ? 'NOVO DOCUMENTO' : 'EDITAR DOCUMENTO',
+        ),
         actions: [
           if (_isSaving)
             const Padding(
               padding: EdgeInsets.all(16.0),
               child: SizedBox(
-                width: 20, 
-                height: 20, 
-                child: CircularProgressIndicator(color: SteampunkTheme.copper, strokeWidth: 2)
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: SteampunkTheme.copper,
+                  strokeWidth: 2,
+                ),
               ),
             )
           else
             TextButton(
               onPressed: _saveDoc,
-              child: const Text('SALVAR', style: TextStyle(color: SteampunkTheme.copper, fontWeight: FontWeight.bold)),
+              child: const Text(
+                'SALVAR',
+                style: TextStyle(
+                  color: SteampunkTheme.copper,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
         ],
       ),
@@ -158,8 +178,11 @@ class _PublicDocumentEditorScreenState extends ConsumerState<PublicDocumentEdito
                   children: [
                     TextFormField(
                       controller: _titleCtrl,
-                      decoration: const InputDecoration(labelText: 'Título do Documento'),
-                      validator: (v) => v == null || v.isEmpty ? 'Insira um título' : null,
+                      decoration: const InputDecoration(
+                        labelText: 'Título do Documento',
+                      ),
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Insira um título' : null,
                       onChanged: (val) => setState(() {}),
                     ),
                     const SizedBox(height: 16),
@@ -167,11 +190,26 @@ class _PublicDocumentEditorScreenState extends ConsumerState<PublicDocumentEdito
                       value: _category,
                       decoration: const InputDecoration(labelText: 'Categoria'),
                       items: const [
-                        DropdownMenuItem(value: 'jornal', child: Text('Gazeta / Jornal')),
-                        DropdownMenuItem(value: 'lore', child: Text('História / Lore')),
-                        DropdownMenuItem(value: 'mapa', child: Text('Mapa / Localização')),
-                        DropdownMenuItem(value: 'pesquisa', child: Text('Pesquisa / Engenharia')),
-                        DropdownMenuItem(value: 'outros', child: Text('Outros')),
+                        DropdownMenuItem(
+                          value: 'jornal',
+                          child: Text('Gazeta / Jornal'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'lore',
+                          child: Text('História / Lore'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'mapa',
+                          child: Text('Mapa / Localização'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'pesquisa',
+                          child: Text('Pesquisa'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'outros',
+                          child: Text('Outros'),
+                        ),
                       ],
                       onChanged: (val) {
                         if (val != null) setState(() => _category = val);
@@ -179,16 +217,26 @@ class _PublicDocumentEditorScreenState extends ConsumerState<PublicDocumentEdito
                     ),
                     const SizedBox(height: 16),
                     if (_isUploading)
-                      const CircularProgressIndicator(color: SteampunkTheme.copper)
+                      const CircularProgressIndicator(
+                        color: SteampunkTheme.copper,
+                      )
                     else
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: SteampunkTheme.leatherBark,
                           foregroundColor: SteampunkTheme.copper,
-                          side: const BorderSide(color: SteampunkTheme.copper, width: 1),
+                          side: const BorderSide(
+                            color: SteampunkTheme.copper,
+                            width: 1,
+                          ),
                         ),
                         onPressed: _pickAndUploadFile,
-                        icon: Icon(_fileUrl == null ? Icons.attach_file : Icons.change_circle_outlined, size: 16),
+                        icon: Icon(
+                          _fileUrl == null
+                              ? Icons.attach_file
+                              : Icons.change_circle_outlined,
+                          size: 16,
+                        ),
                         label: Text(
                           _fileUrl == null ? 'ANEXAR ARQUIVO' : 'ALTERAR ANEXO',
                         ),
@@ -205,7 +253,8 @@ class _PublicDocumentEditorScreenState extends ConsumerState<PublicDocumentEdito
                           alignLabelWithHint: true,
                         ),
                         onChanged: (val) => setState(() {}),
-                        validator: (v) => v == null || v.isEmpty ? 'Insira o conteúdo' : null,
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Insira o conteúdo' : null,
                       ),
                     ),
                   ],
@@ -213,7 +262,7 @@ class _PublicDocumentEditorScreenState extends ConsumerState<PublicDocumentEdito
               ),
             ),
           ),
-          
+
           // Right side: Preview
           Expanded(
             flex: 1,
@@ -224,8 +273,11 @@ class _PublicDocumentEditorScreenState extends ConsumerState<PublicDocumentEdito
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'PREVIEW', 
-                    style: GoogleFonts.cinzel(color: SteampunkTheme.copper, fontWeight: FontWeight.bold),
+                    'PREVIEW',
+                    style: GoogleFonts.cinzel(
+                      color: SteampunkTheme.copper,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Expanded(
@@ -244,15 +296,27 @@ class _PublicDocumentEditorScreenState extends ConsumerState<PublicDocumentEdito
                             ),
                           const SizedBox(height: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
-                              color: SteampunkTheme.copper.withValues(alpha: 0.2),
+                              color: SteampunkTheme.copper.withValues(
+                                alpha: 0.2,
+                              ),
                               borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: SteampunkTheme.copper, width: 1),
+                              border: Border.all(
+                                color: SteampunkTheme.copper,
+                                width: 1,
+                              ),
                             ),
                             child: Text(
                               _category.toUpperCase(),
-                              style: const TextStyle(fontSize: 10, color: SteampunkTheme.copper, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: SteampunkTheme.copper,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -260,17 +324,35 @@ class _PublicDocumentEditorScreenState extends ConsumerState<PublicDocumentEdito
                             MarkdownBody(
                               data: _contentCtrl.text,
                               styleSheet: MarkdownStyleSheet(
-                                p: GoogleFonts.ebGaramond(fontSize: 16, color: Colors.white70),
-                                h1: GoogleFonts.cinzel(fontSize: 22, color: SteampunkTheme.copper, fontWeight: FontWeight.bold),
-                                h2: GoogleFonts.cinzel(fontSize: 20, color: SteampunkTheme.copper),
-                                h3: GoogleFonts.cinzel(fontSize: 18, color: SteampunkTheme.brassGlow),
-                                listBullet: const TextStyle(color: SteampunkTheme.copper),
+                                p: GoogleFonts.ebGaramond(
+                                  fontSize: 16,
+                                  color: Colors.white70,
+                                ),
+                                h1: GoogleFonts.cinzel(
+                                  fontSize: 22,
+                                  color: SteampunkTheme.copper,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                h2: GoogleFonts.cinzel(
+                                  fontSize: 20,
+                                  color: SteampunkTheme.copper,
+                                ),
+                                h3: GoogleFonts.cinzel(
+                                  fontSize: 18,
+                                  color: SteampunkTheme.brassGlow,
+                                ),
+                                listBullet: const TextStyle(
+                                  color: SteampunkTheme.copper,
+                                ),
                               ),
                             )
                           else
                             Text(
                               'O preview do conteúdo aparecerá aqui...',
-                              style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontStyle: FontStyle.italic),
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.3),
+                                fontStyle: FontStyle.italic,
+                              ),
                             ),
                           if (_fileUrl != null) ...[
                             const SizedBox(height: 24),
@@ -285,12 +367,18 @@ class _PublicDocumentEditorScreenState extends ConsumerState<PublicDocumentEdito
                                 color: Colors.white10,
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.insert_drive_file, color: SteampunkTheme.copper),
+                                    const Icon(
+                                      Icons.insert_drive_file,
+                                      color: SteampunkTheme.copper,
+                                    ),
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
                                         'Arquivo anexado com sucesso.',
-                                        style: GoogleFonts.ebGaramond(color: Colors.white70, fontSize: 13),
+                                        style: GoogleFonts.ebGaramond(
+                                          color: Colors.white70,
+                                          fontSize: 13,
+                                        ),
                                       ),
                                     ),
                                   ],

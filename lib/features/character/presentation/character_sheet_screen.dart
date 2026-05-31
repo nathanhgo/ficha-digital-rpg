@@ -1242,11 +1242,12 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: ExpansionTile(
+            trailing: const SizedBox.shrink(),
             title: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  attr,
+                Expanded(
+                  child: Text(
+                    attr,
                   style: GoogleFonts.cinzel(
                     fontWeight: FontWeight.bold,
                     color: SteampunkTheme.copper,
@@ -1260,6 +1261,8 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.remove_circle_outline, size: 20, color: SteampunkTheme.copper),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                         onPressed: isDead ? null : () => _updateAttribute(attr, val - 1),
                       ),
                       Text(
@@ -1268,10 +1271,14 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.add_circle_outline, size: 20, color: SteampunkTheme.copper),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                         onPressed: isDead ? null : () => _updateAttribute(attr, val + 1),
                       ),
                       IconButton(
                         icon: const Icon(Icons.casino, size: 20, color: SteampunkTheme.brassGlow),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                         onPressed: () => _onRollAttributeDice(attr, mod),
                       ),
                     ],
@@ -1590,7 +1597,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('DURABILIDADE DO EQUIPAMENTO', style: GoogleFonts.specialElite(color: Colors.white70)),
+                  Expanded(child: Text('DURABILIDADE DO EQUIPAMENTO', style: GoogleFonts.specialElite(color: Colors.white70))),
                   Row(
                     children: [
                       IconButton(
@@ -1623,7 +1630,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('QUANTIDADE', style: GoogleFonts.specialElite(color: Colors.white70)),
+                  Expanded(child: Text('QUANTIDADE', style: GoogleFonts.specialElite(color: Colors.white70))),
                   Row(
                     children: [
                       IconButton(

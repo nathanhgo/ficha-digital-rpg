@@ -154,7 +154,7 @@ class _DiceScreenState extends State<DiceScreen> {
         children: [
           // Área de seleção de dados
           Expanded(
-            flex: 2,
+            flex: 3,
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -222,7 +222,7 @@ class _DiceScreenState extends State<DiceScreen> {
           const Divider(height: 1, color: SteampunkTheme.copper),
           // Área de resultados
           Expanded(
-            flex: 3,
+            flex: 2,
             child: Container(
               color: SteampunkTheme.castIron,
               width: double.infinity,
@@ -260,7 +260,7 @@ class _DiceScreenState extends State<DiceScreen> {
 
   Widget _buildDiceSelector(int sides, int count) {
     return Container(
-      width: 100,
+      width: 110,
       decoration: BoxDecoration(
         color: SteampunkTheme.castIron,
         border: Border.all(color: count > 0 ? SteampunkTheme.copper : Colors.white12, width: 2),
