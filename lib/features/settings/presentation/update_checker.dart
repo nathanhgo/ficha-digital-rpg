@@ -28,19 +28,10 @@ class UpdateChecker {
       // Clean up tag name (e.g., 'v1.0.1' -> '1.0.1')
       final latestVersion = tagName.replaceAll('v', '');
       
-      // Find the APK download URL in the assets array
-      String? downloadUrl;
-      final assets = json['assets'] as List<dynamic>? ?? [];
-      for (final asset in assets) {
-        final name = asset['name'] as String? ?? '';
-        if (name.endsWith('.apk')) {
-          downloadUrl = asset['browser_download_url'];
-          break;
-        }
-      }
-      
-      // Fallback to the release page if no APK is attached
-      downloadUrl ??= json['html_url'] as String?;
+      // Usamos a página da release (html_url) em vez do link direto do APK.
+      // O Android costuma cancelar downloads diretos de APKs via Intent (url_launcher),
+      // mas funciona perfeitamente se o usuário clicar no link dentro da própria página do GitHub.
+      final downloadUrl = json['html_url'] as String?;
 
       if (downloadUrl == null || downloadUrl.isEmpty) return;
 
@@ -109,8 +100,10 @@ class UpdateChecker {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
             onPressed: () async {
               final uri = Uri.parse(url);
-              if (await canLaunchUrl(uri)) {
+              try {
                 await launchUrl(uri, mode: LaunchMode.externalApplication);
+              } catch (e) {
+                debugPrint('Erro ao abrir URL de atualização: $e');
               }
             },
             child: const Text('BAIXAR ATUALIZAÇÃO', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
