@@ -1248,10 +1248,11 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                 Expanded(
                   child: Text(
                     attr,
-                  style: GoogleFonts.cinzel(
-                    fontWeight: FontWeight.bold,
-                    color: SteampunkTheme.copper,
-                    fontSize: 18,
+                    style: GoogleFonts.cinzel(
+                      fontWeight: FontWeight.bold,
+                      color: SteampunkTheme.copper,
+                      fontSize: 18,
+                    ),
                   ),
                 ),
                 GestureDetector(
