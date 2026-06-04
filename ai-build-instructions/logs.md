@@ -79,3 +79,10 @@ Este documento registra as modificações de código e infraestrutura realizadas
 *   `supabase/supabase_schema.sql` (Correção de recursão e permissão de inscrição/saída de jogadores na campanha)
 *   `test/widget_test.dart` (Adaptação para o fluxo real de autenticação mockada)
 *   `test/rpg_formulas_test.dart` (Novos testes unitários das fórmulas de RPG)
+
+## [04/06/2026] UI/UX Fixes, Skills Update & Web Responsiveness
+- Atualizado o mapa _attributeSkills em character_sheet_screen.dart para refletir a nova lista de perícias do sistema.
+- Refatoração do layout da rolagem de dados (dice_screen.dart) para fixar os botões na base da área superior, evitando corte de tela em dispositivos móveis menores.
+- Ajustado o layout das siglas dos atributos na ficha de personagem (vertical, centralizado e espaçado adequadamente do botão de decremento).
+- Adicionada constraint de largura máxima (500px) no main.dart para garantir uma exibição agradável (aparência mobile) no Flutter Web.
+- Preparação das instruções para deploy na Vercel.

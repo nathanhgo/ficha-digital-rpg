@@ -29,6 +29,11 @@ final GoRouter appRouter = GoRouter(
     return null;
   },
   routes: [
+    // ── Root redirect ─────────────────────────────────────────────────────
+    GoRoute(
+      path: '/',
+      redirect: (context, state) => '/campaigns',
+    ),
     // ── Public routes (no shell) ──────────────────────────────────────────
     GoRoute(
       path: '/login',

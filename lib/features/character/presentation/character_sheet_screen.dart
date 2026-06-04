@@ -195,26 +195,29 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
   }
 
   final Map<String, List<String>> _attributeSkills = const {
-    'CON': [],
+    'CON': [
+      'Pele de Ferro',
+      'Resistir Veneno',
+      'Resistir Frio',
+      'Resistir Calor',
+    ],
     'FOR': [
-      'Mineração',
-      'Lenhador',
+      'Carregar',
+      'Armas Pesadas',
       'Canhões',
-      'Armas de duas mãos',
-      'Pele de ferro',
-      'Carregar'
+      'Arremessar',
     ],
     'DES': [
-      'Arma branca',
+      'Arma Branca',
       'Arma de fogo',
-      'Artes marciais',
+      'Arcos',
+      'Artes Marciais',
       'Explosivos',
       'Escudo',
       'Furtar',
-      'Trabalhos manuais',
-      'Mecânica',
       'Fechaduras',
-      'Condução'
+      'Condução',
+      'Trabalhos Manuais',
     ],
     'AGI': [
       'Esportes',
@@ -223,43 +226,24 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
       'Furtividade',
       'Montaria',
       'Artes',
-      'Esquiva'
+      'Esquiva',
     ],
     'CAR': [
       'Barganha',
-      'Animais',
       'Etiqueta',
       'Gestão',
       'Liderança',
       'Manipulação',
       'Oratória',
-      'Fé',
       'Esoterismo',
-      'Melodia'
+      'Melodia',
     ],
     'VON': [
-      'Sensível a essência',
+      'Fé',
       'Resistir',
-      'Mente blindada',
       'Vidência',
-      'Vasculhar memória'
-    ],
-    'INT': [
-      'Cirurgia',
-      'Computação',
-      'Herbalismo',
-      'Medicina',
-      'CI. Herméticas',
-      'Conhecimento',
-      'Pesquisa',
-      'Idiomas',
-      'Arcanismo',
-      'Leitura',
-      'Indústria',
-      'Engenharia',
-      'Falsificação',
-      'Criptozoologia',
-      'História'
+      'Mentalização',
+      'Controle Mental',
     ],
     'PER': [
       'Camuflagem',
@@ -270,7 +254,18 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
       'Jogos',
       'Armadilhas',
       'Escapismo',
-      'Escutar'
+      'Escutar',
+    ],
+    'INT': [
+      'Historia',
+      'Leitura',
+      'Conhecimentos',
+      'Pesquisa',
+      'Idiomas',
+      'Falsificação',
+      'Computação',
+      'Arcanismo',
+      'Mente Blindada',
     ],
   };
 
@@ -319,7 +314,6 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
       'attributes': attrs,
       'max_fv': maxFv,
       'max_vigor': maxVigor,
-      'max_carga': maxCarga,
       'current_fv': _charData!['current_fv'],
       'current_vigor': _charData!['current_vigor'],
     });
@@ -1244,19 +1238,26 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
           child: ExpansionTile(
             trailing: const SizedBox.shrink(),
             title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
+                // Esquerda: Sigla do Atributo
+                SizedBox(
+                  width: 32,
                   child: Text(
-                    attr,
+                    attr.split('').join('\n'),
+                    textAlign: TextAlign.center,
                     style: GoogleFonts.cinzel(
                       fontWeight: FontWeight.bold,
                       color: SteampunkTheme.copper,
-                      fontSize: 18,
+                      fontSize: 16,
+                      height: 1.1,
                     ),
                   ),
                 ),
+                
+                // Centro: Controles de Valor
                 GestureDetector(
-                  onTap: () {}, // Evita expandir o tile ao clicar nos botões
+                  onTap: () {}, // Evita expandir o tile ao clicar na área entre botões
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1266,9 +1267,12 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                         constraints: const BoxConstraints(),
                         onPressed: isDead ? null : () => _updateAttribute(attr, val - 1),
                       ),
-                      Text(
-                        'VAL: $val (MOD: ${mod >= 0 ? '+' : ''}$mod)',
-                        style: GoogleFonts.specialElite(fontSize: 14),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                        child: Text(
+                          'VAL: $val (MOD: ${mod >= 0 ? '+' : ''}$mod)',
+                          style: GoogleFonts.specialElite(fontSize: 14),
+                        ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.add_circle_outline, size: 20, color: SteampunkTheme.copper),
@@ -1276,14 +1280,16 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                         constraints: const BoxConstraints(),
                         onPressed: isDead ? null : () => _updateAttribute(attr, val + 1),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.casino, size: 20, color: SteampunkTheme.brassGlow),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        onPressed: () => _onRollAttributeDice(attr, mod),
-                      ),
                     ],
                   ),
+                ),
+
+                // Direita: Botão de Rolar Dado
+                IconButton(
+                  icon: const Icon(Icons.casino, size: 24, color: SteampunkTheme.brassGlow),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: () => _onRollAttributeDice(attr, mod),
                 ),
               ],
             ),

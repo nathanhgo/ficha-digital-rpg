@@ -155,21 +155,25 @@ class _DiceScreenState extends State<DiceScreen> {
           // Área de seleção de dados
           Expanded(
             flex: 3,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Wrap(
-                    spacing: 16,
-                    runSpacing: 16,
-                    alignment: WrapAlignment.center,
-                    children: _selectedDice.keys.map((sides) {
-                      final count = _selectedDice[sides]!;
-                      return _buildDiceSelector(sides, count);
-                    }).toList(),
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Wrap(
+                      spacing: 16,
+                      runSpacing: 16,
+                      alignment: WrapAlignment.center,
+                      children: _selectedDice.keys.map((sides) {
+                        final count = _selectedDice[sides]!;
+                        return _buildDiceSelector(sides, count);
+                      }).toList(),
+                    ),
                   ),
-                  const SizedBox(height: 24),
-                  Row(
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text('Bônus/Penalidade:', style: TextStyle(fontSize: 16, color: SteampunkTheme.copper)),
@@ -194,8 +198,10 @@ class _DiceScreenState extends State<DiceScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  Row(
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0, left: 16.0, right: 16.0),
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       OutlinedButton.icon(
@@ -215,8 +221,8 @@ class _DiceScreenState extends State<DiceScreen> {
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           const Divider(height: 1, color: SteampunkTheme.copper),

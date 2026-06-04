@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -8,6 +9,7 @@ import 'core/theme/theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  usePathUrlStrategy(); // Remove o '#' das URLs no Flutter Web
 
   // Carregar variáveis de ambiente se o arquivo existir, senão prosseguir
   try {
@@ -47,6 +49,17 @@ class DespertarCaosApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: SteampunkTheme.darkTheme,
       routerConfig: appRouter,
+      builder: (context, child) {
+        return Container(
+          color: SteampunkTheme.leatherBark, // Fundo temático fora do limite
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1024),
+              child: child!,
+            ),
+          ),
+        );
+      },
     );
   }
 }
