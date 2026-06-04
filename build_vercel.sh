@@ -18,5 +18,9 @@ echo "Resolvendo dependências..."
 flutter clean
 flutter pub get
 
+echo "Gerando arquivo .env a partir das variáveis da Vercel..."
+echo "SUPABASE_URL=$SUPABASE_URL" > .env
+echo "SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" >> .env
+
 echo "Gerando build otimizada..."
 flutter build web --release --no-pub
