@@ -294,10 +294,11 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
 
     final conVal = int.tryParse(attrs['CON']?.toString() ?? '10') ?? 10;
     final forVal = int.tryParse(attrs['FOR']?.toString() ?? '10') ?? 10;
+    final agiVal = int.tryParse(attrs['AGI']?.toString() ?? '10') ?? 10;
     final dvValue = int.tryParse(_charData!['dv_value']?.toString() ?? '8') ?? 8;
 
     final maxFv = conVal * dvValue;
-    final maxVigor = conVal * 2;
+    final maxVigor = (conVal * agiVal) ~/ 2;
     final maxCarga = (conVal * forVal).toDouble();
 
     setState(() {
@@ -317,6 +318,38 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
       'current_fv': _charData!['current_fv'],
       'current_vigor': _charData!['current_vigor'],
     });
+  }
+
+  void _editAttributeValue(String attr, int currentVal) {
+    final ctrl = TextEditingController(text: currentVal.toString());
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: SteampunkTheme.castIron,
+        title: Text('Editar $attr', style: const TextStyle(color: SteampunkTheme.copper)),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Novo Valor'),
+          onSubmitted: (v) {
+            final val = int.tryParse(v);
+            if (val != null && val >= 0) _updateAttribute(attr, val);
+            Navigator.pop(ctx);
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              final val = int.tryParse(ctrl.text);
+              if (val != null && val >= 0) _updateAttribute(attr, val);
+              Navigator.pop(ctx);
+            },
+            child: const Text('SALVAR', style: TextStyle(color: SteampunkTheme.copper)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _onDiaryChanged(String text) {
@@ -741,7 +774,17 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
     efeitos.add(effect);
     newData['efeitos'] = efeitos;
     
-    await _charRepo.updateCharacter(widget.characterId, newData);
+    final payload = {
+      'efeitos': efeitos,
+      'current_fv': newData['current_fv'],
+      'max_fv': newData['max_fv'],
+      'current_vigor': newData['current_vigor'],
+      'max_vigor': newData['max_vigor'],
+      'current_pm': newData['current_pm'],
+      'max_pm': newData['max_pm'],
+      'sanidade': newData['sanidade'],
+    };
+    await _charRepo.updateVitals(widget.characterId, payload);
     setState(() => _charData = newData);
   }
 
@@ -773,7 +816,17 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
     efeitos.removeAt(index);
     newData['efeitos'] = efeitos;
     
-    await _charRepo.updateCharacter(widget.characterId, newData);
+    final payload = {
+      'efeitos': efeitos,
+      'current_fv': newData['current_fv'],
+      'max_fv': newData['max_fv'],
+      'current_vigor': newData['current_vigor'],
+      'max_vigor': newData['max_vigor'],
+      'current_pm': newData['current_pm'],
+      'max_pm': newData['max_pm'],
+      'sanidade': newData['sanidade'],
+    };
+    await _charRepo.updateVitals(widget.characterId, payload);
     setState(() => _charData = newData);
   }
 
@@ -1267,11 +1320,14 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                         constraints: const BoxConstraints(),
                         onPressed: isDead ? null : () => _updateAttribute(attr, val - 1),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                        child: Text(
-                          'VAL: $val (MOD: ${mod >= 0 ? '+' : ''}$mod)',
-                          style: GoogleFonts.specialElite(fontSize: 14),
+                      InkWell(
+                        onTap: isDead ? null : () => _editAttributeValue(attr, val),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                          child: Text(
+                            'VAL: $val (MOD: ${mod >= 0 ? '+' : ''}$mod)',
+                            style: GoogleFonts.specialElite(fontSize: 14, decoration: TextDecoration.underline),
+                          ),
                         ),
                       ),
                       IconButton(
@@ -1285,11 +1341,12 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                 ),
 
                 // Direita: Botão de Rolar Dado
-                IconButton(
-                  icon: const Icon(Icons.casino, size: 24, color: SteampunkTheme.brassGlow),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  onPressed: () => _onRollAttributeDice(attr, mod),
+                GestureDetector(
+                  onTap: () => _onRollAttributeDice(attr, mod),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Icon(Icons.casino, size: 24, color: SteampunkTheme.brassGlow),
+                  ),
                 ),
               ],
             ),

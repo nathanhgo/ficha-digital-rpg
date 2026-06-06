@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/theme.dart';
 import '../../auth/presentation/auth_controller.dart';
@@ -175,6 +176,11 @@ class _SystemInfoScreenState extends ConsumerState<SystemInfoScreen> {
                         const SizedBox(height: 16),
                         MarkdownBody(
                           data: post['content'] as String? ?? '',
+                          onTapLink: (text, href, title) {
+                            if (href != null) {
+                              launchUrl(Uri.parse(href), mode: LaunchMode.externalApplication);
+                            }
+                          },
                           styleSheet: MarkdownStyleSheet(
                             p: GoogleFonts.ebGaramond(fontSize: 16, color: Colors.white70),
                             h1: GoogleFonts.cinzel(fontSize: 22, color: SteampunkTheme.copper, fontWeight: FontWeight.bold),

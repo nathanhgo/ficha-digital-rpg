@@ -129,7 +129,16 @@ class _DiceScreenState extends State<DiceScreen> {
           },
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+          TextButton(
+            onPressed: () {
+              final val = int.tryParse(ctrl.text);
+              if (val != null) {
+                setState(() => _bonus = val);
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('OK'),
+          ),
         ],
       ),
     );

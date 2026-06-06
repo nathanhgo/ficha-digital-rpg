@@ -130,8 +130,9 @@ class _CharacterCreateScreenState extends ConsumerState<CharacterCreateScreen> {
     
     // FV Máxima = Constituição * DV
     final maxFv = conValue * dvValue;
-    // Vigor Máximo = Constituição * 2
-    final maxVigor = conValue * 2;
+    // Vigor Máximo = (Constituição * Agilidade) / 2
+    final agiValue = _attributes['AGI'] ?? 10;
+    final maxVigor = (conValue * agiValue) ~/ 2;
 
     final char = await _charRepo.createCharacter(
       ownerId: userId,
