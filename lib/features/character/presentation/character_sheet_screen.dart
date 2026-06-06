@@ -1805,7 +1805,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCELAR', style: TextStyle(color: Colors.white70))),
             ElevatedButton(
               onPressed: () async {
-                final ability = {
+                final ability = <String, dynamic>{
                   'name': nameCtrl.text.trim(),
                   'type': selectedType,
                   'effect': effectCtrl.text.trim(),
@@ -1843,7 +1843,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
     final ataques = [];
     
     for (int i = 0; i < habilidades.length; i++) {
-      final hab = habilidades[i];
+      final hab = Map<String, dynamic>.from(habilidades[i]);
       hab['_index'] = i; 
       if (hab['type'] == 'passiva') passivas.add(hab);
       else if (hab['type'] == 'ativa') ativas.add(hab);
