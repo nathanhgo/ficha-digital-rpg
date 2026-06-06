@@ -22,9 +22,11 @@ class _SystemPostEditorScreenState extends State<SystemPostEditorScreen> {
   final _repo = SystemInfoRepository();
   final _titleCtrl = TextEditingController();
   final _contentCtrl = TextEditingController();
+  final _allowedCharactersCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   bool _isSaving = false;
+  bool _isPublic = true;
 
   @override
   void initState() {
@@ -32,6 +34,9 @@ class _SystemPostEditorScreenState extends State<SystemPostEditorScreen> {
     if (widget.existingPost != null) {
       _titleCtrl.text = widget.existingPost!['title'] as String? ?? '';
       _contentCtrl.text = widget.existingPost!['content'] as String? ?? '';
+      _isPublic = widget.existingPost!['is_public'] as bool? ?? true;
+      final allowed = widget.existingPost!['allowed_character_ids'] as List<dynamic>? ?? [];
+      _allowedCharactersCtrl.text = allowed.join(', ');
     }
   }
 
@@ -47,19 +52,28 @@ class _SystemPostEditorScreenState extends State<SystemPostEditorScreen> {
 
     setState(() => _isSaving = true);
     
+    final allowedList = _allowedCharactersCtrl.text
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+
     bool success = false;
     if (widget.existingPost == null) {
       success = await _repo.createPost(
         widget.authorId, 
         _titleCtrl.text.trim(), 
-        _contentCtrl.text.trim()
+        _contentCtrl.text.trim(),
+        isPublic: _isPublic,
+        allowedCharacterIds: allowedList,
       );
     } else {
-      // Need to implement update in repository
       success = await _repo.updatePost(
         widget.existingPost!['id'] as String,
         _titleCtrl.text.trim(),
-        _contentCtrl.text.trim()
+        _contentCtrl.text.trim(),
+        isPublic: _isPublic,
+        allowedCharacterIds: allowedList,
       );
     }
 
@@ -125,6 +139,27 @@ class _SystemPostEditorScreenState extends State<SystemPostEditorScreen> {
                       decoration: const InputDecoration(labelText: 'Título'),
                       validator: (v) => v == null || v.isEmpty ? 'Insira um título' : null,
                     ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Switch(
+                          value: _isPublic,
+                          activeColor: SteampunkTheme.copper,
+                          onChanged: (val) => setState(() => _isPublic = val),
+                        ),
+                        Text('Post Público?', style: TextStyle(color: _isPublic ? Colors.white : Colors.white54)),
+                      ],
+                    ),
+                    if (!_isPublic) ...[
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _allowedCharactersCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Personagens Permitidos (Nomes ou IDs)',
+                          hintText: 'Ex: Arthur, Kael, 1234-abcd...',
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     Expanded(
                       child: TextFormField(

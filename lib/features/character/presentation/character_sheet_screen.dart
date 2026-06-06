@@ -710,7 +710,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
     final attrs = _charData!['attributes'] as Map<String, dynamic>? ?? {};
 
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: Scaffold(
         appBar: AppBar(
           title: Text('${_charData!['name']} (Nível ${_charData!['level']})'.toUpperCase()),
@@ -724,6 +724,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
               Tab(text: 'ATRIBUTOS'),
               Tab(text: 'PRÓTESES'),
               Tab(text: 'INVENTÁRIO'),
+              Tab(text: 'HABILIDADES'),
               Tab(text: 'DIÁRIO'),
             ],
           ),
@@ -742,7 +743,10 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
             // ABA 4: INVENTÁRIO
             _buildInventoryTab(isDead),
 
-            // ABA 5: DIÁRIO & MORTE
+            // ABA 5: HABILIDADES
+            _buildAbilitiesTab(isDead),
+
+            // ABA 6: DIÁRIO
             _buildDiaryTab(isDead),
           ],
         ),
@@ -1725,6 +1729,182 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _removeAbility(int index) async {
+    if (_charData == null) return;
+    
+    final habilidades = List<Map<String, dynamic>>.from(_charData!['habilidades'] ?? []);
+    if (index < 0 || index >= habilidades.length) return;
+    
+    habilidades.removeAt(index);
+    
+    final newData = Map<String, dynamic>.from(_charData!);
+    newData['habilidades'] = habilidades;
+    
+    await _charRepo.updateVitals(widget.characterId, {'habilidades': habilidades});
+    setState(() => _charData = newData);
+  }
+
+  void _showAddAbilityDialog() {
+    final nameCtrl = TextEditingController();
+    final effectCtrl = TextEditingController();
+    final costCtrl = TextEditingController();
+    final attackCtrl = TextEditingController();
+    String selectedType = 'passiva';
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: SteampunkTheme.castIron,
+          title: const Text('NOVA HABILIDADE', style: TextStyle(color: SteampunkTheme.copper)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: selectedType,
+                  dropdownColor: SteampunkTheme.leatherBark,
+                  decoration: const InputDecoration(labelText: 'Tipo'),
+                  items: ['passiva', 'ativa', 'ataque'].map((t) => DropdownMenuItem(value: t, child: Text(t.toUpperCase()))).toList(),
+                  onChanged: (v) => setDialogState(() => selectedType = v!),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Nome da Habilidade'),
+                ),
+                const SizedBox(height: 16),
+                if (selectedType != 'ataque') 
+                  TextField(
+                    controller: effectCtrl,
+                    maxLines: 3,
+                    decoration: const InputDecoration(labelText: 'Efeito'),
+                  ),
+                if (selectedType == 'ativa' || selectedType == 'ataque') ...[
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: costCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Custo numérico (PE/PM)'),
+                  ),
+                ],
+                if (selectedType == 'ataque') ...[
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: attackCtrl,
+                    decoration: const InputDecoration(labelText: 'Ataque/Dano (Ex: 1d6+FOR)'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCELAR', style: TextStyle(color: Colors.white70))),
+            ElevatedButton(
+              onPressed: () async {
+                final ability = {
+                  'name': nameCtrl.text.trim(),
+                  'type': selectedType,
+                  'effect': effectCtrl.text.trim(),
+                  'cost': int.tryParse(costCtrl.text.trim()) ?? 0,
+                  'attack': attackCtrl.text.trim(),
+                };
+                
+                final habilidades = List<Map<String, dynamic>>.from(_charData!['habilidades'] ?? []);
+                habilidades.add(ability);
+                
+                final newData = Map<String, dynamic>.from(_charData!);
+                newData['habilidades'] = habilidades;
+                
+                await _charRepo.updateVitals(widget.characterId, {'habilidades': habilidades});
+                setState(() => _charData = newData);
+                Navigator.pop(ctx);
+              },
+              child: const Text('ADICIONAR'),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAbilitiesTab(bool isDead) {
+    final habilidades = List<Map<String, dynamic>>.from(_charData!['habilidades'] ?? []);
+    
+    final passivas = [];
+    final ativas = [];
+    final ataques = [];
+    
+    for (int i = 0; i < habilidades.length; i++) {
+      final hab = habilidades[i];
+      hab['_index'] = i; 
+      if (hab['type'] == 'passiva') passivas.add(hab);
+      else if (hab['type'] == 'ativa') ativas.add(hab);
+      else if (hab['type'] == 'ataque') ataques.add(hab);
+    }
+    
+    Widget buildList(String title, List items, Color color) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            color: color.withOpacity(0.2),
+            child: Text(title, style: GoogleFonts.cinzel(color: color, fontWeight: FontWeight.bold, fontSize: 18)),
+          ),
+          if (items.isEmpty)
+            const Padding(padding: EdgeInsets.all(16), child: Text('Nenhuma registrada.', style: TextStyle(color: Colors.white54)))
+          else
+            ...items.map((item) {
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                color: SteampunkTheme.castIron,
+                child: ListTile(
+                  title: Text(item['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (item['type'] != 'ataque' && (item['effect'] ?? '').toString().isNotEmpty)
+                        Text('Efeito: ${item['effect']}'),
+                      if ((item['type'] == 'ativa' || item['type'] == 'ataque') && item['cost'] != null)
+                        Text('Custo: ${item['cost']}'),
+                      if (item['type'] == 'ataque' && (item['attack'] ?? '').toString().isNotEmpty)
+                        Text('Ataque/Dano: ${item['attack']}'),
+                    ],
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete, color: SteampunkTheme.bloodRed),
+                    onPressed: isDead ? null : () => _removeAbility(item['_index']),
+                  ),
+                ),
+              );
+            }),
+          const SizedBox(height: 16),
+        ],
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          children: [
+            buildList('PASSIVAS', passivas, Colors.teal),
+            buildList('ATIVAS', ativas, Colors.blueAccent),
+            buildList('ATAQUES', ataques, SteampunkTheme.bloodRed),
+          ],
+        ),
+      ),
+      floatingActionButton: isDead ? null : FloatingActionButton(
+        backgroundColor: SteampunkTheme.copper,
+        foregroundColor: SteampunkTheme.castIron,
+        onPressed: _showAddAbilityDialog,
+        child: const Icon(Icons.add),
       ),
     );
   }

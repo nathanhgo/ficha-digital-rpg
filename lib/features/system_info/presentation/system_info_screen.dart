@@ -9,6 +9,7 @@ import '../../../core/theme/theme.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../data/system_info_repository.dart';
 import 'system_post_editor_screen.dart';
+import '../../character/presentation/characters_provider.dart';
 
 class SystemInfoScreen extends ConsumerStatefulWidget {
   const SystemInfoScreen({super.key});
@@ -69,6 +70,10 @@ class _SystemInfoScreenState extends ConsumerState<SystemInfoScreen> {
     final userId = user['id'] as String;
     final role = user['role'] as String? ?? 'player';
     final isMaster = role == 'master';
+    
+    // Obter personagens do usuário para checar permissão em posts privados
+    final userCharsAsync = ref.watch(userCharactersProvider);
+    final userCharacters = userCharsAsync.valueOrNull ?? [];
 
     return Scaffold(
       appBar: AppBar(
@@ -93,7 +98,21 @@ class _SystemInfoScreenState extends ConsumerState<SystemInfoScreen> {
               return const Center(child: CircularProgressIndicator(color: SteampunkTheme.copper));
             }
 
-            final posts = snapshot.data ?? [];
+            final allPosts = snapshot.data ?? [];
+            final posts = allPosts.where((post) {
+              if (isMaster) return true; // Master vê tudo
+              final isPublic = post['is_public'] as bool? ?? true;
+              if (isPublic) return true;
+              
+              // Se privado, checa se algum personagem do usuário está na lista
+              final allowed = post['allowed_character_ids'] as List<dynamic>? ?? [];
+              for (var char in userCharacters) {
+                if (allowed.contains(char['id']) || allowed.contains(char['name'])) {
+                  return true;
+                }
+              }
+              return false;
+            }).toList();
 
             if (posts.isEmpty) {
               return Center(

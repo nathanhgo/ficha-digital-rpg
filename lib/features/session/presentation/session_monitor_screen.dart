@@ -198,52 +198,92 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
     await _loadSessions();
   }
 
-  void _onAwardXp() {
+  void _onAwardXp() async {
+    final chars = await _charRepo.fetchCharactersForCampaign(widget.campaignId);
+    if (!mounted) return;
+
     final xpController = TextEditingController();
+    String targetCharId = 'all';
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: SteampunkTheme.castIron,
-        title: Text('DISTRIBUIR EXPERIÊNCIA (XP)', style: Theme.of(context).textTheme.titleLarge),
-        content: TextFormField(
-          controller: xpController,
-          decoration: const InputDecoration(labelText: 'Quantidade de XP'),
-          keyboardType: TextInputType.number,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('CANCELAR', style: TextStyle(color: Colors.white70)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final xp = int.tryParse(xpController.text) ?? 0;
-              if (xp > 0) {
-                final navigator = Navigator.of(ctx);
-                final scaffoldMessenger = ScaffoldMessenger.of(context);
-                final chars = await _charRepo.fetchCharactersForCampaign(widget.campaignId);
-                for (var char in chars) {
-                  await _charRepo.addXp(
-                    char['id'] as String,
-                    char['xp'] as int? ?? 0,
-                    char['level'] as int? ?? 0,
-                    xp,
-                  );
-                }
-                if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text('Distribuído $xp de XP para todos os personagens!'),
-                      backgroundColor: SteampunkTheme.copper,
-                    ),
-                  );
-                  navigator.pop();
-                }
-              }
-            },
-            child: const Text('DISTRIBUIR'),
-          ),
-        ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: SteampunkTheme.castIron,
+            title: Text('DISTRIBUIR EXPERIÊNCIA (XP)', style: Theme.of(context).textTheme.titleLarge),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: targetCharId,
+                  dropdownColor: SteampunkTheme.leatherBark,
+                  decoration: const InputDecoration(labelText: 'Alvo'),
+                  items: [
+                    const DropdownMenuItem(value: 'all', child: Text('Todos os Personagens')),
+                    ...chars.map((c) => DropdownMenuItem(value: c['id'] as String, child: Text(c['name'] as String))),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) {
+                      setDialogState(() => targetCharId = v);
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: xpController,
+                  decoration: const InputDecoration(labelText: 'Quantidade de XP'),
+                  keyboardType: TextInputType.number,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('CANCELAR', style: TextStyle(color: Colors.white70)),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final xp = int.tryParse(xpController.text) ?? 0;
+                  if (xp > 0) {
+                    final navigator = Navigator.of(ctx);
+                    final scaffoldMessenger = ScaffoldMessenger.of(context);
+                    
+                    if (targetCharId == 'all') {
+                      for (var char in chars) {
+                        await _charRepo.addXp(
+                          char['id'] as String,
+                          char['xp'] as int? ?? 0,
+                          char['level'] as int? ?? 0,
+                          xp,
+                        );
+                      }
+                    } else {
+                      final selectedChar = chars.firstWhere((c) => c['id'] == targetCharId);
+                      await _charRepo.addXp(
+                        selectedChar['id'] as String,
+                        selectedChar['xp'] as int? ?? 0,
+                        selectedChar['level'] as int? ?? 0,
+                        xp,
+                      );
+                    }
+                    
+                    if (mounted) {
+                      scaffoldMessenger.showSnackBar(
+                        SnackBar(
+                          content: Text(targetCharId == 'all' ? 'Distribuído $xp de XP para todos!' : 'Distribuído $xp de XP para alvo selecionado!'),
+                          backgroundColor: SteampunkTheme.copper,
+                        ),
+                      );
+                      navigator.pop();
+                    }
+                  }
+                },
+                child: const Text('DISTRIBUIR'),
+              ),
+            ],
+          );
+        }
       ),
     );
   }

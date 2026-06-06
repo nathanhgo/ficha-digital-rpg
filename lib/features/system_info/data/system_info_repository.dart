@@ -12,12 +12,14 @@ class SystemInfoRepository {
         .map((data) => List<Map<String, dynamic>>.from(data));
   }
 
-  Future<bool> createPost(String authorId, String title, String content) async {
+  Future<bool> createPost(String authorId, String title, String content, {bool isPublic = true, List<String> allowedCharacterIds = const []}) async {
     try {
       await _client.from('system_posts').insert({
         'author_id': authorId,
         'title': title,
         'content': content,
+        'is_public': isPublic,
+        'allowed_character_ids': allowedCharacterIds,
       });
       return true;
     } catch (e) {
@@ -36,11 +38,13 @@ class SystemInfoRepository {
     }
   }
 
-  Future<bool> updatePost(String postId, String title, String content) async {
+  Future<bool> updatePost(String postId, String title, String content, {bool isPublic = true, List<String> allowedCharacterIds = const []}) async {
     try {
       await _client.from('system_posts').update({
         'title': title,
         'content': content,
+        'is_public': isPublic,
+        'allowed_character_ids': allowedCharacterIds,
       }).eq('id', postId);
       return true;
     } catch (e) {
