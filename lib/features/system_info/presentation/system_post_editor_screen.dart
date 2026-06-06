@@ -3,6 +3,8 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/theme.dart';
 import '../data/system_info_repository.dart';
+import '../../campaign/data/campaign_repository.dart';
+import '../../character/data/character_repository.dart';
 
 class SystemPostEditorScreen extends StatefulWidget {
   final String authorId;
@@ -27,6 +29,8 @@ class _SystemPostEditorScreenState extends State<SystemPostEditorScreen> {
 
   bool _isSaving = false;
   bool _isPublic = true;
+  List<Map<String, dynamic>> _masterCharacters = [];
+  List<String> _selectedCharacterIds = [];
 
   @override
   void initState() {
@@ -36,7 +40,26 @@ class _SystemPostEditorScreenState extends State<SystemPostEditorScreen> {
       _contentCtrl.text = widget.existingPost!['content'] as String? ?? '';
       _isPublic = widget.existingPost!['is_public'] as bool? ?? true;
       final allowed = widget.existingPost!['allowed_character_ids'] as List<dynamic>? ?? [];
-      _allowedCharactersCtrl.text = allowed.join(', ');
+      _selectedCharacterIds = allowed.map((e) => e.toString()).toList();
+    }
+    _loadMasterCharacters();
+  }
+
+  Future<void> _loadMasterCharacters() async {
+    final campRepo = CampaignRepository();
+    final charRepo = CharacterRepository();
+    
+    final campaigns = await campRepo.fetchCampaigns(widget.authorId, 'master');
+    final List<Map<String, dynamic>> chars = [];
+    for (var camp in campaigns) {
+      final campChars = await charRepo.fetchCharactersForCampaign(camp['id'] as String);
+      chars.addAll(campChars);
+    }
+    
+    if (mounted) {
+      setState(() {
+        _masterCharacters = chars;
+      });
     }
   }
 
@@ -51,12 +74,6 @@ class _SystemPostEditorScreenState extends State<SystemPostEditorScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSaving = true);
-    
-    final allowedList = _allowedCharactersCtrl.text
-        .split(',')
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
 
     bool success = false;
     if (widget.existingPost == null) {
@@ -65,7 +82,7 @@ class _SystemPostEditorScreenState extends State<SystemPostEditorScreen> {
         _titleCtrl.text.trim(), 
         _contentCtrl.text.trim(),
         isPublic: _isPublic,
-        allowedCharacterIds: allowedList,
+        allowedCharacterIds: _selectedCharacterIds,
       );
     } else {
       success = await _repo.updatePost(
@@ -73,7 +90,7 @@ class _SystemPostEditorScreenState extends State<SystemPostEditorScreen> {
         _titleCtrl.text.trim(),
         _contentCtrl.text.trim(),
         isPublic: _isPublic,
-        allowedCharacterIds: allowedList,
+        allowedCharacterIds: _selectedCharacterIds,
       );
     }
 
@@ -152,13 +169,40 @@ class _SystemPostEditorScreenState extends State<SystemPostEditorScreen> {
                     ),
                     if (!_isPublic) ...[
                       const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _allowedCharactersCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Personagens Permitidos (Nomes ou IDs)',
-                          hintText: 'Ex: Arthur, Kael, 1234-abcd...',
+                      const Text('Personagens Permitidos:', style: TextStyle(color: SteampunkTheme.copper, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      if (_masterCharacters.isEmpty)
+                        const Text('Carregando personagens...', style: TextStyle(color: Colors.white54))
+                      else
+                        Container(
+                          constraints: const BoxConstraints(maxHeight: 150),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.white12),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: ListView.builder(
+                            itemCount: _masterCharacters.length,
+                            itemBuilder: (ctx, idx) {
+                              final char = _masterCharacters[idx];
+                              final charId = char['id'] as String;
+                              return CheckboxListTile(
+                                title: Text('${char['name']} (${char['profiles']?['username'] ?? '?'})', style: const TextStyle(color: Colors.white70)),
+                                value: _selectedCharacterIds.contains(charId),
+                                checkColor: SteampunkTheme.castIron,
+                                activeColor: SteampunkTheme.copper,
+                                onChanged: (val) {
+                                  setState(() {
+                                    if (val == true) {
+                                      _selectedCharacterIds.add(charId);
+                                    } else {
+                                      _selectedCharacterIds.remove(charId);
+                                    }
+                                  });
+                                },
+                              );
+                            },
+                          ),
                         ),
-                      ),
                     ],
                     const SizedBox(height: 16),
                     Expanded(

@@ -1748,19 +1748,19 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
     setState(() => _charData = newData);
   }
 
-  void _showAddAbilityDialog() {
-    final nameCtrl = TextEditingController();
-    final effectCtrl = TextEditingController();
-    final costCtrl = TextEditingController();
-    final attackCtrl = TextEditingController();
-    String selectedType = 'passiva';
+  void _showAbilityDialog([Map<String, dynamic>? existingAbility, int? index]) {
+    final nameCtrl = TextEditingController(text: existingAbility?['name'] as String? ?? '');
+    final effectCtrl = TextEditingController(text: existingAbility?['effect'] as String? ?? '');
+    final costCtrl = TextEditingController(text: existingAbility?['cost']?.toString() ?? '');
+    final attackCtrl = TextEditingController(text: existingAbility?['attack'] as String? ?? '');
+    String selectedType = existingAbility?['type'] as String? ?? 'passiva';
     
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: SteampunkTheme.castIron,
-          title: const Text('NOVA HABILIDADE', style: TextStyle(color: SteampunkTheme.copper)),
+          title: Text(existingAbility == null ? 'NOVA HABILIDADE' : 'EDITAR HABILIDADE', style: const TextStyle(color: SteampunkTheme.copper)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1788,8 +1788,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                   const SizedBox(height: 16),
                   TextField(
                     controller: costCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Custo numérico (PE/PM)'),
+                    decoration: const InputDecoration(labelText: 'Custo (PE/PM, texto livre)'),
                   ),
                 ],
                 if (selectedType == 'ataque') ...[
@@ -1810,12 +1809,16 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                   'name': nameCtrl.text.trim(),
                   'type': selectedType,
                   'effect': effectCtrl.text.trim(),
-                  'cost': int.tryParse(costCtrl.text.trim()) ?? 0,
+                  'cost': costCtrl.text.trim(),
                   'attack': attackCtrl.text.trim(),
                 };
                 
                 final habilidades = List<Map<String, dynamic>>.from(_charData!['habilidades'] ?? []);
-                habilidades.add(ability);
+                if (index != null && index >= 0 && index < habilidades.length) {
+                  habilidades[index] = ability;
+                } else {
+                  habilidades.add(ability);
+                }
                 
                 final newData = Map<String, dynamic>.from(_charData!);
                 newData['habilidades'] = habilidades;
@@ -1824,7 +1827,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                 setState(() => _charData = newData);
                 Navigator.pop(ctx);
               },
-              child: const Text('ADICIONAR'),
+              child: Text(existingAbility == null ? 'ADICIONAR' : 'SALVAR'),
             )
           ],
         ),
@@ -1876,9 +1879,18 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                         Text('Ataque/Dano: ${item['attack']}'),
                     ],
                   ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: SteampunkTheme.bloodRed),
-                    onPressed: isDead ? null : () => _removeAbility(item['_index']),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: SteampunkTheme.copper),
+                        onPressed: isDead ? null : () => _showAbilityDialog(item, item['_index']),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: SteampunkTheme.bloodRed),
+                        onPressed: isDead ? null : () => _removeAbility(item['_index']),
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -1903,7 +1915,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
       floatingActionButton: isDead ? null : FloatingActionButton(
         backgroundColor: SteampunkTheme.copper,
         foregroundColor: SteampunkTheme.castIron,
-        onPressed: _showAddAbilityDialog,
+        onPressed: () => _showAbilityDialog(),
         child: const Icon(Icons.add),
       ),
     );
