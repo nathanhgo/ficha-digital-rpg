@@ -48,6 +48,7 @@ class CharacterRepository {
     required int maxFv,
     required int maxVigor,
     String? avatarUrl,
+    int level = 1,
   }) async {
     try {
       final response = await _client.from('characters').insert({
@@ -75,6 +76,8 @@ class CharacterRepository {
         'sangue': 100,
         'caos': 0,
         'exposicao_rad': 0,
+        'level': level,
+        'xp': 0,
       }).select().single();
       return response;
     } catch (e) {

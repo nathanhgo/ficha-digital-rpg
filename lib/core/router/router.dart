@@ -73,7 +73,8 @@ final GoRouter appRouter = GoRouter(
                   path: 'character/:id',
                   builder: (context, state) {
                     final charId = state.pathParameters['id'] ?? '';
-                    return CharacterSheetScreen(characterId: charId);
+                    final isReadOnly = state.uri.queryParameters['readOnly'] == 'true';
+                    return CharacterSheetScreen(characterId: charId, isReadOnly: isReadOnly);
                   },
                 ),
                 GoRoute(

@@ -24,6 +24,7 @@ class _CharacterCreateScreenState extends ConsumerState<CharacterCreateScreen> {
   final _subclassController = TextEditingController();
   final _professionController = TextEditingController();
   final _dvController = TextEditingController(text: '8');
+  final _levelController = TextEditingController(text: '1');
   String? _avatarUrl;
 
   // Atributos iniciais
@@ -39,7 +40,11 @@ class _CharacterCreateScreenState extends ConsumerState<CharacterCreateScreen> {
   };
 
   int get _totalAllocated => _attributes.values.fold(0, (sum, val) => sum + val);
-  int get _pointsRemaining => 80 - _totalAllocated;
+  int get _pointsRemaining {
+    int total = _attributes.values.fold(0, (sum, val) => sum + val);
+    int level = int.tryParse(_levelController.text) ?? 0;
+    return (80 + (level * 3)) - total;
+  }
 
   final _charRepo = CharacterRepository();
   bool _isLoading = false;
@@ -52,6 +57,7 @@ class _CharacterCreateScreenState extends ConsumerState<CharacterCreateScreen> {
     _subclassController.dispose();
     _professionController.dispose();
     _dvController.dispose();
+    _levelController.dispose();
     super.dispose();
   }
 
@@ -147,6 +153,7 @@ class _CharacterCreateScreenState extends ConsumerState<CharacterCreateScreen> {
       attributes: _attributes,
       maxFv: maxFv,
       maxVigor: maxVigor,
+      level: int.tryParse(_levelController.text) ?? 1,
       avatarUrl: _avatarUrl,
     );
 
@@ -257,8 +264,7 @@ class _CharacterCreateScreenState extends ConsumerState<CharacterCreateScreen> {
                             Expanded(
                               child: TextFormField(
                                 controller: _professionController,
-                                decoration: const InputDecoration(labelText: 'Profissão'),
-                                validator: (v) => v == null || v.isEmpty ? 'Insira a profissão' : null,
+                                decoration: const InputDecoration(labelText: 'Profissão (Opcional)'),
                               ),
                             ),
                           ],
@@ -283,19 +289,41 @@ class _CharacterCreateScreenState extends ConsumerState<CharacterCreateScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _dvController,
-                          decoration: const InputDecoration(
-                            labelText: 'Dado de Vida (DV) - Ex: 6, 8, 10, 12',
-                            hintText: 'Apenas o número',
-                          ),
-                          keyboardType: TextInputType.number,
-                          validator: (v) {
-                            if (v == null || v.isEmpty) return 'Insira o valor do DV';
-                            final numVal = int.tryParse(v);
-                            if (numVal == null || numVal <= 0) return 'DV inválido';
-                            return null;
-                          },
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _dvController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Dado de Vida (DV) - Ex: 6, 8, 10, 12',
+                                  hintText: 'Apenas o número',
+                                ),
+                                keyboardType: TextInputType.number,
+                                validator: (v) {
+                                  if (v == null || v.isEmpty) return 'Insira o valor do DV';
+                                  final numVal = int.tryParse(v);
+                                  if (numVal == null || numVal <= 0) return 'DV inválido';
+                                  return null;
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: TextFormField(
+                                controller: _levelController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Nível Inicial',
+                                ),
+                                keyboardType: TextInputType.number,
+                                onChanged: (_) => setState(() {}),
+                                validator: (v) {
+                                  final lvl = int.tryParse(v ?? '');
+                                  if (lvl == null || lvl < 0) return 'Nível inválido';
+                                  return null;
+                                },
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

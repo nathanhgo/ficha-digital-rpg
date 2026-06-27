@@ -140,7 +140,8 @@ class _ManometerPainter extends CustomPainter {
 // TELA DA FICHA DE PERSONAGEM
 class CharacterSheetScreen extends ConsumerStatefulWidget {
   final String characterId;
-  const CharacterSheetScreen({super.key, required this.characterId});
+  final bool isReadOnly;
+  const CharacterSheetScreen({super.key, required this.characterId, this.isReadOnly = false});
 
   @override
   ConsumerState<CharacterSheetScreen> createState() => _CharacterSheetScreenState();
@@ -270,7 +271,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
   };
 
   void _updateVital(String key, dynamic value) async {
-    if (_charData == null || _charData!['is_dead'] == true) return;
+    if (_charData == null || _charData!['is_dead'] == true || widget.isReadOnly) return;
     setState(() {
       _charData![key] = value;
     });
@@ -278,7 +279,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
   }
 
   void _updateSkill(String skillName, int newValue) async {
-    if (_charData == null || _charData!['is_dead'] == true) return;
+    if (_charData == null || _charData!['is_dead'] == true || widget.isReadOnly) return;
     final Map<String, dynamic> skills = Map<String, dynamic>.from(_charData!['skills'] as Map? ?? {});
     skills[skillName] = newValue;
     setState(() {
@@ -288,7 +289,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
   }
 
   void _updateAttribute(String attrName, int newValue) async {
-    if (_charData == null || _charData!['is_dead'] == true || newValue < 0) return;
+    if (_charData == null || _charData!['is_dead'] == true || widget.isReadOnly || newValue < 0) return;
     final Map<String, dynamic> attrs = Map<String, dynamic>.from(_charData!['attributes'] as Map? ?? {});
     attrs[attrName] = newValue;
 
@@ -353,7 +354,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
   }
 
   void _onDiaryChanged(String text) {
-    if (_charData == null || _charData!['is_dead'] == true) return;
+    if (_charData == null || _charData!['is_dead'] == true || widget.isReadOnly) return;
     _diaryDebounce?.cancel();
     _diaryDebounce = Timer(const Duration(milliseconds: 800), () async {
       await _charRepo.updateDiary(_charData!['id'] as String, text);
@@ -706,11 +707,12 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
       );
     }
 
-    final isDead = _charData!['is_dead'] == true;
+    final isDead = _charData!['is_dead'] == true || widget.isReadOnly;
     final attrs = _charData!['attributes'] as Map<String, dynamic>? ?? {};
+    final hasDiary = !widget.isReadOnly;
 
     return DefaultTabController(
-      length: 6,
+      length: hasDiary ? 6 : 5,
       child: Scaffold(
         appBar: AppBar(
           title: Text('${_charData!['name']} (Nível ${_charData!['level']})'.toUpperCase()),
@@ -725,7 +727,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
               Tab(text: 'PRÓTESES'),
               Tab(text: 'INVENTÁRIO'),
               Tab(text: 'HABILIDADES'),
-              Tab(text: 'DIÁRIO'),
+              if (hasDiary) Tab(text: 'DIÁRIO'),
             ],
           ),
         ),
@@ -747,7 +749,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
             _buildAbilitiesTab(isDead),
 
             // ABA 6: DIÁRIO
-            _buildDiaryTab(isDead),
+            if (hasDiary) _buildDiaryTab(isDead),
           ],
         ),
       ),
@@ -1272,13 +1274,45 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
   }
 
   Widget _buildAttributesTab(Map<String, dynamic> attributes) {
-    final isDead = _charData!['is_dead'] == true;
+    final isDead = _charData!['is_dead'] == true || widget.isReadOnly;
     final Map<String, dynamic> skills = Map<String, dynamic>.from(_charData!['skills'] as Map? ?? {});
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: attributes.keys.length,
-      itemBuilder: (context, idx) {
+    int totalSpent = attributes.values.fold(0, (sum, val) => sum + (int.tryParse(val.toString()) ?? 0));
+    int level = _charData!['level'] as int? ?? 1;
+    int maxPoints = 80 + (level * 3);
+    int availablePoints = maxPoints - totalSpent;
+
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          color: SteampunkTheme.castIron,
+          child: Column(
+            children: [
+              Text(
+                'PONTOS DE ATRIBUTO DISPONÍVEIS: $availablePoints / $maxPoints',
+                style: GoogleFonts.cinzel(
+                  fontWeight: FontWeight.bold,
+                  color: availablePoints < 0 ? SteampunkTheme.bloodRed : SteampunkTheme.copper,
+                  fontSize: 16,
+                ),
+              ),
+              if (availablePoints < 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4.0),
+                  child: Text(
+                    'PONTOS EXCEDIDOS! REDUZA SEUS ATRIBUTOS.',
+                    style: TextStyle(color: SteampunkTheme.bloodRed, fontWeight: FontWeight.bold),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: attributes.keys.length,
+            itemBuilder: (context, idx) {
         final attr = attributes.keys.elementAt(idx);
         final val = int.tryParse(attributes[attr].toString()) ?? 10;
         final mod = (val - 10) ~/ 2;
@@ -1338,7 +1372,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                         icon: const Icon(Icons.add_circle_outline, size: 20, color: SteampunkTheme.copper),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
-                        onPressed: isDead ? null : () => _updateAttribute(attr, val + 1),
+                        onPressed: isDead || availablePoints <= 0 ? null : () => _updateAttribute(attr, val + 1),
                       ),
                     ],
                   ),
@@ -1406,6 +1440,9 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
           ),
         );
       },
+    ),
+    ),
+    ],
     );
   }
 

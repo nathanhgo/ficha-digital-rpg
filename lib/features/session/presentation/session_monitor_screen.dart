@@ -12,6 +12,7 @@ import '../../public_documents/presentation/documents_tab.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../../core/theme/theme.dart';
 import '../../notifications/presentation/notification_badge_icon.dart';
+import '../data/npc_repository.dart';
 
 class SessionMonitorScreen extends ConsumerStatefulWidget {
   final String campaignId;
@@ -25,6 +26,7 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
   final _sessionRepo = SessionRepository();
   final _charRepo = CharacterRepository();
   final _inventoryRepo = InventoryRepository();
+  final _npcRepo = NpcRepository();
 
   Map<String, dynamic>? _activeSession;
   List<Map<String, dynamic>> _allSessions = [];
@@ -547,17 +549,20 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
         ],
       ),
       body: DefaultTabController(
-        length: 2,
+        length: 4,
         child: Column(
           children: [
             Container(
               color: SteampunkTheme.castIron,
               child: TabBar(
+                isScrollable: true,
                 labelColor: SteampunkTheme.copper,
                 unselectedLabelColor: Colors.white60,
                 indicatorColor: SteampunkTheme.copper,
                 tabs: const [
                   Tab(icon: Icon(Icons.dashboard_outlined), text: 'SESSÃO'),
+                  Tab(icon: Icon(Icons.people), text: 'JOGADORES'),
+                  Tab(icon: Icon(Icons.adb), text: 'NPCs'),
                   Tab(icon: Icon(Icons.menu_book), text: 'MURAL'),
                 ],
               ),
@@ -566,9 +571,271 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
               child: TabBarView(
                 children: [
                   _buildMasterSessionTab(authState),
+                  _buildMasterPlayersTab(),
+                  _buildMasterNpcsTab(),
                   _buildMuralTab(),
                 ],
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMasterPlayersTab() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: SteampunkTheme.leatherBark,
+      ),
+      child: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: _sessionRepo.streamCharacters(widget.campaignId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: SteampunkTheme.copper));
+          }
+          final chars = snapshot.data ?? [];
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _onAwardXp,
+                      icon: const Icon(Icons.star),
+                      label: const Text('DISTRIBUIR XP'),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _onDistributeItem,
+                      icon: const Icon(Icons.card_giftcard),
+                      label: const Text('DAR ITEM'),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: chars.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'Nenhum jogador na campanha.',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: chars.length,
+                        itemBuilder: (context, index) {
+                          final char = chars[index];
+                          return Card(
+                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: SteampunkTheme.copper,
+                                child: Text(
+                                  char['name']?.toString().substring(0, 1) ?? '?',
+                                  style: const TextStyle(color: SteampunkTheme.castIron, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              title: Text(char['name'] ?? '', style: GoogleFonts.cinzel(fontWeight: FontWeight.bold)),
+                              subtitle: Text('Nível ${char['level'] ?? 1} | ${char['char_class'] ?? ''}'),
+                              trailing: const Icon(Icons.chevron_right, color: SteampunkTheme.copper),
+                              onTap: () {
+                                context.push('/campaigns/character/${char['id']}?readOnly=true');
+                              },
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildMasterNpcsTab() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: SteampunkTheme.leatherBark,
+      ),
+      child: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: _npcRepo.streamNpcs(widget.campaignId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: SteampunkTheme.copper));
+          }
+          final npcs = snapshot.data ?? [];
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: ElevatedButton.icon(
+                  onPressed: _onCreateNpc,
+                  icon: const Icon(Icons.add),
+                  label: const Text('CRIAR NOVO NPC / MONSTRO'),
+                ),
+              ),
+              Expanded(
+                child: npcs.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'Nenhum NPC registrado. Crie um para começar!',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: npcs.length,
+                        itemBuilder: (context, index) {
+                          final npc = npcs[index];
+                          return Card(
+                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            child: ListTile(
+                              leading: const Icon(Icons.adb, color: SteampunkTheme.copper, size: 32),
+                              title: Text(npc['name'] ?? '', style: GoogleFonts.cinzel(fontWeight: FontWeight.bold)),
+                              subtitle: Text(
+                                npc['description'] ?? 'Sem descrição',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete, color: SteampunkTheme.bloodRed),
+                                onPressed: () async {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (c) => AlertDialog(
+                                      backgroundColor: SteampunkTheme.castIron,
+                                      title: const Text('DELETAR NPC?'),
+                                      actions: [
+                                        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('CANCELAR')),
+                                        ElevatedButton(
+                                          style: ElevatedButton.styleFrom(backgroundColor: SteampunkTheme.bloodRed),
+                                          onPressed: () => Navigator.pop(c, true),
+                                          child: const Text('DELETAR'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirm == true) {
+                                    await _npcRepo.deleteNpc(npc['id']);
+                                  }
+                                },
+                              ),
+                              onTap: () {
+                                _onEditNpc(npc);
+                              },
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _onCreateNpc() {
+    _showNpcDialog();
+  }
+
+  void _onEditNpc(Map<String, dynamic> npc) {
+    _showNpcDialog(npcToEdit: npc);
+  }
+
+  void _showNpcDialog({Map<String, dynamic>? npcToEdit}) {
+    final nameCtrl = TextEditingController(text: npcToEdit?['name'] ?? '');
+    final descCtrl = TextEditingController(text: npcToEdit?['description'] ?? '');
+    final fvCtrl = TextEditingController(text: (npcToEdit?['max_fv'] ?? 10).toString());
+    final vigorCtrl = TextEditingController(text: (npcToEdit?['max_vigor'] ?? 10).toString());
+    
+    final attrs = Map<String, dynamic>.from(npcToEdit?['attributes'] ?? {
+      'FORÇA': 10, 'AGILIDADE': 10, 'DESTREZA': 10, 'CONSTITUIÇÃO': 10,
+      'INTELIGÊNCIA': 10, 'PERCEPÇÃO': 10, 'VONTADE': 10, 'CARISMA': 10
+    });
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: SteampunkTheme.castIron,
+          title: Text(npcToEdit == null ? 'CRIAR NPC' : 'EDITAR NPC', style: GoogleFonts.cinzel(color: SteampunkTheme.copper)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Nome')),
+                  const SizedBox(height: 8),
+                  TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Descrição (Opcional)'), maxLines: 3),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(child: TextField(controller: fvCtrl, decoration: const InputDecoration(labelText: 'Força de Vontade'), keyboardType: TextInputType.number)),
+                      const SizedBox(width: 8),
+                      Expanded(child: TextField(controller: vigorCtrl, decoration: const InputDecoration(labelText: 'Vigor'), keyboardType: TextInputType.number)),
+                    ],
+                  ),
+                  const Divider(color: SteampunkTheme.copper, height: 32),
+                  Text('ATRIBUTOS (LIVRES)', style: GoogleFonts.cinzel()),
+                  ...attrs.keys.map((key) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(key),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.remove, color: SteampunkTheme.copper),
+                                onPressed: () => setDialogState(() => attrs[key] = (attrs[key] as int) - 1),
+                              ),
+                              Text('${attrs[key]}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                              IconButton(
+                                icon: const Icon(Icons.add, color: SteampunkTheme.copper),
+                                onPressed: () => setDialogState(() => attrs[key] = (attrs[key] as int) + 1),
+                              ),
+                            ],
+                          )
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCELAR')),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameCtrl.text.isEmpty) return;
+                if (npcToEdit == null) {
+                  await _npcRepo.createNpc(
+                    campaignId: widget.campaignId,
+                    name: nameCtrl.text.trim(),
+                    description: descCtrl.text.trim(),
+                    maxFv: int.tryParse(fvCtrl.text) ?? 10,
+                    maxVigor: int.tryParse(vigorCtrl.text) ?? 10,
+                    attributes: attrs,
+                    habilidades: [],
+                  );
+                } else {
+                  await _npcRepo.updateNpc(npcToEdit['id'], {
+                    'name': nameCtrl.text.trim(),
+                    'description': descCtrl.text.trim(),
+                    'max_fv': int.tryParse(fvCtrl.text) ?? 10,
+                    'max_vigor': int.tryParse(vigorCtrl.text) ?? 10,
+                    'attributes': attrs,
+                  });
+                }
+                if (mounted) Navigator.pop(ctx);
+              },
+              child: const Text('SALVAR'),
             ),
           ],
         ),
