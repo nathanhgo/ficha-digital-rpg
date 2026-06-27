@@ -344,10 +344,16 @@ class _CharacterCreateScreenState extends ConsumerState<CharacterCreateScreen> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 8),
-                        Text(
-                          'Você deve distribuir exatamente 80 pontos entre os 8 atributos da mesa.',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70),
-                          textAlign: TextAlign.center,
+                        Builder(
+                          builder: (context) {
+                            final int level = int.tryParse(_levelController.text) ?? 0;
+                            final int maxPoints = 80 + (level * 3);
+                            return Text(
+                              'Você deve distribuir exatamente $maxPoints pontos entre os 8 atributos da mesa.',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                              textAlign: TextAlign.center,
+                            );
+                          }
                         ),
                         const SizedBox(height: 16),
                         Container(
@@ -362,13 +368,19 @@ class _CharacterCreateScreenState extends ConsumerState<CharacterCreateScreen> {
                             ),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Text(
-                            'PONTOS RESTANTES: $_pointsRemaining / 80',
-                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: _pointsRemaining == 0 ? Colors.green : SteampunkTheme.copper,
-                                ),
-                            textAlign: TextAlign.center,
+                          child: Builder(
+                            builder: (context) {
+                              final int level = int.tryParse(_levelController.text) ?? 0;
+                              final int maxPoints = 80 + (level * 3);
+                              return Text(
+                                'PONTOS RESTANTES: $_pointsRemaining / $maxPoints',
+                                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: _pointsRemaining == 0 ? Colors.green : SteampunkTheme.copper,
+                                    ),
+                                textAlign: TextAlign.center,
+                              );
+                            }
                           ),
                         ),
                         const SizedBox(height: 24),

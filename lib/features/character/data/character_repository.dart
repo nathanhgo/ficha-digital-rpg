@@ -19,6 +19,16 @@ class CharacterRepository {
     }
   }
 
+  Future<Map<String, dynamic>?> fetchCharacterById(String characterId) async {
+    try {
+      final response = await _client.from('characters').select().eq('id', characterId).single();
+      return Map<String, dynamic>.from(response);
+    } catch (e) {
+      debugPrint("Erro ao buscar personagem por ID: $e");
+      return null;
+    }
+  }
+
   Future<List<Map<String, dynamic>>> fetchCharactersForCampaign(String campaignId) async {
     if (campaignId.isEmpty) return [];
     try {

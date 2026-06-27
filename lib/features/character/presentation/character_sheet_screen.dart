@@ -173,13 +173,20 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    final users = await _charRepo.fetchCharactersForUser(ref.read(authControllerProvider).profile?['id'] ?? '');
-    final char = users.firstWhere(
-      (c) => c['id'] == widget.characterId,
-      orElse: () => <String, dynamic>{},
-    );
+    
+    Map<String, dynamic>? char;
+    
+    if (widget.isReadOnly) {
+      char = await _charRepo.fetchCharacterById(widget.characterId);
+    } else {
+      final users = await _charRepo.fetchCharactersForUser(ref.read(authControllerProvider).profile?['id'] ?? '');
+      char = users.firstWhere(
+        (c) => c['id'] == widget.characterId,
+        orElse: () => <String, dynamic>{},
+      );
+    }
 
-    if (char.isNotEmpty) {
+    if (char != null && char.isNotEmpty) {
       _charData = char;
       _diaryController.text = char['diary'] ?? '';
       await _loadInventory();
@@ -1353,7 +1360,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.remove_circle_outline, size: 20, color: SteampunkTheme.copper),
+                        icon: Icon(Icons.remove_circle_outline, size: 20, color: isDead ? Colors.grey : SteampunkTheme.copper),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         onPressed: isDead ? null : () => _updateAttribute(attr, val - 1),
@@ -1364,12 +1371,16 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 12.0),
                           child: Text(
                             'VAL: $val (MOD: ${mod >= 0 ? '+' : ''}$mod)',
-                            style: GoogleFonts.specialElite(fontSize: 14, decoration: TextDecoration.underline),
+                            style: GoogleFonts.specialElite(
+                              fontSize: 14, 
+                              decoration: TextDecoration.underline,
+                              color: isDead ? Colors.grey : Colors.white,
+                            ),
                           ),
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.add_circle_outline, size: 20, color: SteampunkTheme.copper),
+                        icon: Icon(Icons.add_circle_outline, size: 20, color: (isDead || availablePoints <= 0) ? Colors.grey : SteampunkTheme.copper),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         onPressed: isDead || availablePoints <= 0 ? null : () => _updateAttribute(attr, val + 1),

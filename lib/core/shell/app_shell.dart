@@ -29,7 +29,7 @@ class AppShell extends ConsumerWidget {
       ),
       BottomNavigationBarItem(
         icon: Icon(isMaster ? Icons.inventory_2 : Icons.person),
-        label: isMaster ? 'Itens' : 'Personagens',
+        label: isMaster ? 'Presets' : 'Personagens',
       ),
       const BottomNavigationBarItem(
         icon: Icon(Icons.casino),

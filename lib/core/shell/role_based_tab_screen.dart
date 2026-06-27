@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/presentation/auth_controller.dart';
-import '../../features/inventory/presentation/items_catalog_screen.dart';
+import '../../features/shell/presets_screen.dart';
 import '../../features/character/presentation/characters_tab_screen.dart';
 
 class RoleBasedTabScreen extends ConsumerWidget {
@@ -13,7 +13,7 @@ class RoleBasedTabScreen extends ConsumerWidget {
     final role = authState.profile?['role'] ?? 'player';
 
     if (role == 'master') {
-      return const ItemsCatalogScreen();
+      return const PresetsScreen();
     } else {
       return const CharactersTabScreen();
     }

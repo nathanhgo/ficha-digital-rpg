@@ -9,7 +9,8 @@ import '../../../core/utils/storage_helper.dart';
 import 'package:file_picker/file_picker.dart';
 
 class ItemsCatalogScreen extends ConsumerStatefulWidget {
-  const ItemsCatalogScreen({super.key});
+  final bool isEmbedded;
+  const ItemsCatalogScreen({super.key, this.isEmbedded = false});
 
   @override
   ConsumerState<ItemsCatalogScreen> createState() => _ItemsCatalogScreenState();
@@ -215,7 +216,7 @@ class _ItemsCatalogScreenState extends ConsumerState<ItemsCatalogScreen> {
     final campaigns = ref.watch(campaignsControllerProvider).campaigns;
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: widget.isEmbedded ? null : AppBar(
         title: Text('CATÁLOGO DE ITENS', style: GoogleFonts.cinzel(fontWeight: FontWeight.bold)),
         automaticallyImplyLeading: false,
       ),
