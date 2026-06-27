@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/theme.dart';
-import '../../inventory/presentation/items_catalog_screen.dart';
-import '../../session/presentation/npcs_catalog_screen.dart'; // We'll create this next
+import '../inventory/presentation/items_catalog_screen.dart';
+import '../session/presentation/npcs_catalog_screen.dart';
 
 class PresetsScreen extends ConsumerStatefulWidget {
   const PresetsScreen({super.key});
@@ -32,7 +32,7 @@ class _PresetsScreenState extends ConsumerState<PresetsScreen> {
             ],
           ),
         ),
-        body: const TabBarView(
+        body: TabBarView(
           children: [
             ItemsCatalogScreen(isEmbedded: true),
             NpcsCatalogScreen(),
