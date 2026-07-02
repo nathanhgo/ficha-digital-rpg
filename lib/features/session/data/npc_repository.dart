@@ -20,6 +20,9 @@ class NpcRepository {
     required List<Map<String, dynamic>> habilidades,
     required int maxFv,
     required int maxVigor,
+    int ataque = 0,
+    int defesa = 0,
+    String? avatarUrl,
   }) async {
     try {
       await _client.from('npcs').insert({
@@ -32,6 +35,9 @@ class NpcRepository {
         'current_fv': maxFv,
         'max_vigor': maxVigor,
         'current_vigor': maxVigor,
+        'ataque': ataque,
+        'defesa': defesa,
+        'avatar_url': avatarUrl,
       });
       return true;
     } catch (e) {

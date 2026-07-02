@@ -30,6 +30,8 @@ class InventoryRepository {
     required bool accepted,
     required String category,
     String? campaignId,
+    String? ataquePontos,
+    String? defesaPontos,
   }) async {
     try {
       // 1. Inserir na tabela items
@@ -40,6 +42,8 @@ class InventoryRepository {
         'weight': weight,
         'category': category,
         'is_template': false,
+        'ataque_pontos': ataquePontos,
+        'defesa_pontos': defesaPontos,
       }).select().single();
 
       final itemId = itemResponse['id'] as String;
@@ -54,7 +58,7 @@ class InventoryRepository {
       
       // Default database is 20 for durability. If category is item, we still need to insert a value 
       // or omit it. Since we omit it, DB default will handle it.
-      if (category == 'equipment') {
+      if (category == 'equipment' || category == 'weapon' || category == 'armor') {
         invData['durability'] = 20;
       }
 
@@ -129,7 +133,6 @@ class InventoryRepository {
     }
   }
 
-  /// Cria um item template no catálogo do Mestre
   Future<Map<String, dynamic>?> createTemplateItem({
     required String campaignId,
     required String name,
@@ -137,6 +140,8 @@ class InventoryRepository {
     required double weight,
     required String category,
     String? imageUrl,
+    String? ataquePontos,
+    String? defesaPontos,
   }) async {
     try {
       final response = await _client.from('items').insert({
@@ -147,6 +152,8 @@ class InventoryRepository {
         'category': category,
         'image_url': imageUrl,
         'is_template': true,
+        'ataque_pontos': ataquePontos,
+        'defesa_pontos': defesaPontos,
       }).select().single();
       return response;
     } catch (e) {
@@ -204,6 +211,8 @@ class InventoryRepository {
     required String description,
     required double weight,
     required String category,
+    String? ataquePontos,
+    String? defesaPontos,
   }) async {
     try {
       await _client.from('items').update({
@@ -211,6 +220,8 @@ class InventoryRepository {
         'description': description,
         'weight': weight,
         'category': category,
+        'ataque_pontos': ataquePontos,
+        'defesa_pontos': defesaPontos,
       }).eq('id', itemId);
     } catch (e) {
       debugPrint("Erro ao atualizar item: $e");

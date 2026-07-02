@@ -29,7 +29,7 @@ class DocumentRepository {
     required String initialStatus,
   }) async {
     try {
-      await _client.from('public_documents').insert({
+      final insertedDoc = await _client.from('public_documents').insert({
         'campaign_id': campaignId,
         'author_id': authorId,
         'title': title,
@@ -37,7 +37,9 @@ class DocumentRepository {
         'category': category,
         'image_url': imageUrl,
         'status': initialStatus,
-      });
+      }).select().single();
+
+      final docId = insertedDoc['id'] as String;
 
       // Se for pendente, notifica o mestre. Se aprovado, notifica os jogadores.
       try {
@@ -49,6 +51,11 @@ class DocumentRepository {
             'user_id': masterId,
             'title': 'Documento para Aprovação',
             'message': 'Um novo documento "$title" foi enviado para moderação na campanha "${camp['name']}".',
+            'type': 'document_moderation',
+            'metadata': {
+              'document_id': docId,
+              'campaign_id': campaignId,
+            },
           });
         } else if (initialStatus == 'approved') {
           final players = await _client.from('campaign_players').select('player_id').eq('campaign_id', campaignId);
@@ -69,6 +76,21 @@ class DocumentRepository {
     } catch (e) {
       debugPrint("Erro ao criar documento público: $e");
       return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> fetchDocumentById(String docId) async {
+    if (docId.isEmpty) return null;
+    try {
+      final response = await _client
+          .from('public_documents')
+          .select('*, profiles(username)')
+          .eq('id', docId)
+          .single();
+      return Map<String, dynamic>.from(response);
+    } catch (e) {
+      debugPrint("Erro ao buscar documento por ID: $e");
+      return null;
     }
   }
 

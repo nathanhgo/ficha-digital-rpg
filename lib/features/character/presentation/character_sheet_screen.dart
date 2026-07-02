@@ -295,10 +295,31 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
     await _charRepo.updateVitals(_charData!['id'] as String, {'skills': skills});
   }
 
+  String _getAttrOfAptitude(String aptitude) {
+    if (['Escamas de dragão', 'Organismo de ferro', 'Alimentação nutritiva', 'Alta imunidade'].contains(aptitude)) return 'CON';
+    if (['Lenhador', 'Mineiro', 'Fisioculturista', 'Bucha de canhão'].contains(aptitude)) return 'FOR';
+    if (['Atleta Olimpico', 'Movimentos rápidos', 'Em boa forma', 'Fôlego redobrado'].contains(aptitude)) return 'AGI';
+    if (['Mestre das Armas', 'Piloto experiente', 'Lutador profissional', 'Atirador'].contains(aptitude)) return 'DES';
+    if (['Devorador de livros', 'Hacker', 'Instruído a ensinar', 'Convincente'].contains(aptitude)) return 'INT';
+    if (['Mestre instrumentalista', 'Mestre sociável', 'Boas gorjetas', 'Pechincheiro'].contains(aptitude)) return 'CAR';
+    if (['Mente blindada', 'Espirituoso', 'Ilusionista', 'Favores Divinos'].contains(aptitude)) return 'VON';
+    if (['Sentidos aguçados', 'Armadilheiro', 'Caçador profissional', 'Rei do Jogo'].contains(aptitude)) return 'PER';
+    return '';
+  }
+
   void _updateAttribute(String attrName, int newValue) async {
     if (_charData == null || _charData!['is_dead'] == true || widget.isReadOnly || newValue < 0) return;
     final Map<String, dynamic> attrs = Map<String, dynamic>.from(_charData!['attributes'] as Map? ?? {});
     attrs[attrName] = newValue;
+
+    // Remover aptidões cujo atributo caiu abaixo de 10
+    final apts = List<String>.from(_charData!['aptitudes'] ?? []);
+    final updatedApts = List<String>.from(apts);
+    for (var apt in apts) {
+      if (_getAttrOfAptitude(apt) == attrName && newValue < 10) {
+        updatedApts.remove(apt);
+      }
+    }
 
     final conVal = int.tryParse(attrs['CON']?.toString() ?? '10') ?? 10;
     final forVal = int.tryParse(attrs['FOR']?.toString() ?? '10') ?? 10;
@@ -311,6 +332,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
 
     setState(() {
       _charData!['attributes'] = attrs;
+      _charData!['aptitudes'] = updatedApts;
       _charData!['max_fv'] = maxFv;
       _charData!['max_vigor'] = maxVigor;
       _charData!['max_carga'] = maxCarga;
@@ -321,11 +343,208 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
 
     await _charRepo.updateVitals(_charData!['id'] as String, {
       'attributes': attrs,
+      'aptitudes': updatedApts,
       'max_fv': maxFv,
       'max_vigor': maxVigor,
       'current_fv': _charData!['current_fv'],
       'current_vigor': _charData!['current_vigor'],
     });
+  }
+
+  Widget _buildAptitudesTab(bool isDead) {
+    final Map<String, dynamic> attributes = Map<String, dynamic>.from(_charData!['attributes'] as Map? ?? {});
+    final selectedApts = List<String>.from(_charData!['aptitudes'] ?? []);
+    final totalSelected = selectedApts.length;
+    final isReadOnly = widget.isReadOnly || isDead;
+
+    final Map<String, List<String>> aptitudesByAttr = {
+      'CON': ['Escamas de dragão', 'Organismo de ferro', 'Alimentação nutritiva', 'Alta imunidade'],
+      'FOR': ['Lenhador', 'Mineiro', 'Fisioculturista', 'Bucha de canhão'],
+      'AGI': ['Atleta Olimpico', 'Movimentos rápidos', 'Em boa forma', 'Fôlego redobrado'],
+      'DES': ['Mestre das Armas', 'Piloto experiente', 'Lutador profissional', 'Atirador'],
+      'INT': ['Devorador de livros', 'Hacker', 'Instruído a ensinar', 'Convincente'],
+      'CAR': ['Mestre instrumentalista', 'Mestre sociável', 'Boas gorjetas', 'Pechincheiro'],
+      'VON': ['Mente blindada', 'Espirituoso', 'Ilusionista', 'Favores Divinos'],
+      'PER': ['Sentidos aguçados', 'Armadilheiro', 'Caçador profissional', 'Rei do Jogo'],
+    };
+
+    final Map<String, String> attrNames = {
+      'CON': 'CONSTITUIÇÃO',
+      'FOR': 'FORÇA',
+      'AGI': 'AGILIDADE',
+      'DES': 'DESTREZA',
+      'INT': 'INTELIGÊNCIA',
+      'CAR': 'CARISMA',
+      'VON': 'FORÇA DE VONTADE',
+      'PER': 'PERCEPÇÃO',
+    };
+
+    const Map<String, String> aptitudesEffects = {
+      'Escamas de dragão': 'ganha +2 pontos de defesa em cada armadura que esteja usando',
+      'Organismo de ferro': 'ganha um resistência de +5 contra envenenamento',
+      'Alimentação nutritiva': 'recupera +15 de vida ao comer alguma coisa',
+      'Alta imunidade': 'não sofre penalizações climáticas',
+      'Lenhador': '+5 em dano corpo a corpo',
+      'Mineiro': '+3 em testes de força',
+      'Fisioculturista': '-4 no dano corpo a corpo sofrido',
+      'Bucha de canhão': 'não recebe dano ao ser arremessado ou saltar em cima de inimigos',
+      'Atleta Olimpico': '+5 em qualquer teste de atletismo',
+      'Movimentos rápidos': 'vantagem de +3 em tentar se esquivar',
+      'Em boa forma': 'movimentação não sofre penalização de movimentação',
+      'Fôlego redobrado': 'toda perda de consciência é reduzida pela metade do valor sofrido',
+      'Mestre das Armas': 'capaz de usar qualquer arma até 2 níveis acima',
+      'Piloto experiente': 'sabe conduzir qualquer veículo',
+      'Lutador profissional': '+4 de dano com armas contundentes e armas brancas',
+      'Atirador': 'o alcance de precisão é aumentado em +5 metros (quadrados)',
+      'Devorador de livros': 'capaz de ler qualquer livro em até 3 turnos de ações',
+      'Hacker': 'consegue acessar qualquer painel de segurança',
+      'Instruído a ensinar': 'pode ensinar a outro jogador uma perícia que já saiba dando +1 ponto na determinada perícia do outro jogador',
+      'Convincente': 'inimigos ou NPCs podem acreditar em informações falsas que o jogador der',
+      'Mestre instrumentalista': 'capaz de tocar bem qualquer instrumento',
+      'Mestre sociável': 'pode conseguir informações apenas conversando com NPCs',
+      'Boas gorjetas': 'ao realizar um trabalho pode ganhar um bônus na recompensa',
+      'Pechincheiro': 'consegue comprar qualquer coisa pela metade do preço',
+      'Mente blindada': 'pode tentar resistir a ataques de mentalicos',
+      'Espirituoso': 'consegue ter respostas dos deuses em locais sagrados',
+      'Ilusionista': 'pode tentar criar uma ilusão permanente em um local',
+      'Favores Divinos': 'como servo fiel dos deuses vc é frequentemente abençoado com alguma ajuda dos deuses',
+      'Sentidos aguçados': 'testes de percepção recebem vantagem de +5 no dado',
+      'Armadilheiro': 'ao localizar armadilhas permite que o grupo passe por elas sem que precise desarma-la',
+      'Caçador profissional': 'conhece os padrões animais podendo prever ações ou até mesmo domar animais',
+      'Rei do Jogo': 'percebe trapaças e pode fazer até 3 palpites ao jogar Yankas',
+    };
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Card(
+            color: SteampunkTheme.castIron,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Text(
+                    'APTIDÕES SELECIONADAS',
+                    style: GoogleFonts.cinzel(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: SteampunkTheme.copper,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$totalSelected / 5',
+                    style: GoogleFonts.specialElite(
+                      fontSize: 24,
+                      color: totalSelected == 5 ? SteampunkTheme.brassGlow : Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  LinearProgressIndicator(
+                    value: totalSelected / 5,
+                    backgroundColor: Colors.white10,
+                    valueColor: const AlwaysStoppedAnimation<Color>(SteampunkTheme.copper),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...aptitudesByAttr.entries.map((entry) {
+            final attrKey = entry.key;
+            final list = entry.value;
+            final attrVal = int.tryParse(attributes[attrKey]?.toString() ?? '10') ?? 10;
+            final isEligible = attrVal >= 10;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 16, bottom: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${attrNames[attrKey]} ($attrKey): $attrVal',
+                        style: GoogleFonts.cinzel(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: isEligible ? SteampunkTheme.brassGlow : Colors.white24,
+                        ),
+                      ),
+                      if (!isEligible)
+                        Text(
+                          'BLOQUEADO (REQUER 10+)',
+                          style: GoogleFonts.specialElite(
+                            fontSize: 11,
+                            color: SteampunkTheme.bloodRed,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                ...list.map((apt) {
+                  final isSelected = selectedApts.contains(apt);
+                  final desc = aptitudesEffects[apt] ?? '';
+                  final canSelect = isEligible && (isSelected || totalSelected < 5);
+
+                  return Card(
+                    color: isSelected 
+                        ? SteampunkTheme.copper.withValues(alpha: 0.15) 
+                        : SteampunkTheme.castIron.withValues(alpha: isEligible ? 1.0 : 0.4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(
+                        color: isSelected ? SteampunkTheme.copper : Colors.transparent,
+                        width: 1,
+                      ),
+                    ),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: CheckboxListTile(
+                      enabled: !isReadOnly && canSelect,
+                      activeColor: SteampunkTheme.copper,
+                      checkColor: SteampunkTheme.castIron,
+                      title: Text(
+                        apt,
+                        style: GoogleFonts.cinzel(
+                          fontWeight: FontWeight.bold,
+                          color: isEligible 
+                              ? (isSelected ? SteampunkTheme.copper : Colors.white) 
+                              : Colors.white24,
+                        ),
+                      ),
+                      subtitle: Text(
+                        desc,
+                        style: TextStyle(
+                          color: isEligible ? Colors.white60 : Colors.white24,
+                          fontSize: 13,
+                        ),
+                      ),
+                      value: isSelected,
+                      onChanged: (val) async {
+                        if (val == null) return;
+                        final newApts = List<String>.from(selectedApts);
+                        if (val) {
+                          newApts.add(apt);
+                        } else {
+                          newApts.remove(apt);
+                        }
+                        setState(() {
+                          _charData!['aptitudes'] = newApts;
+                        });
+                        await _charRepo.updateVitals(widget.characterId, {'aptitudes': newApts});
+                      },
+                    ),
+                  );
+                }),
+              ],
+            );
+          }),
+        ],
+      ),
+    );
   }
 
   void _editAttributeValue(String attr, int currentVal) {
@@ -428,6 +647,8 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
     final descController = TextEditingController();
     final weightController = TextEditingController(text: '1.0');
     final qtyController = TextEditingController(text: '1');
+    final atkPointsController = TextEditingController();
+    final defPointsController = TextEditingController();
     final formKey = GlobalKey<FormState>();
     String category = 'item';
 
@@ -439,52 +660,68 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
         content: StatefulBuilder(
           builder: (context, setDialogState) => Form(
             key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  value: category,
-                  decoration: const InputDecoration(labelText: 'Categoria'),
-                  items: const [
-                    DropdownMenuItem(value: 'item', child: Text('Item Geral')),
-                    DropdownMenuItem(value: 'equipment', child: Text('Equipamento (Durabilidade)')),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) setDialogState(() => category = val);
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Nome'),
-                  validator: (v) => v == null || v.isEmpty ? 'Insira o nome' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: descController,
-                  decoration: const InputDecoration(labelText: 'Descrição'),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: weightController,
-                        decoration: const InputDecoration(labelText: 'Peso (Kg)'),
-                        keyboardType: TextInputType.number,
-                      ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: category,
+                    decoration: const InputDecoration(labelText: 'Categoria'),
+                    items: const [
+                      DropdownMenuItem(value: 'item', child: Text('Item Geral')),
+                      DropdownMenuItem(value: 'weapon', child: Text('Arma (Equipamento)')),
+                      DropdownMenuItem(value: 'armor', child: Text('Armadura (Equipamento)')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setDialogState(() => category = val);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: nameController,
+                    decoration: const InputDecoration(labelText: 'Nome'),
+                    validator: (v) => v == null || v.isEmpty ? 'Insira o nome' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: descController,
+                    decoration: const InputDecoration(labelText: 'Descrição'),
+                  ),
+                  const SizedBox(height: 12),
+                  if (category == 'weapon') ...[
+                    TextFormField(
+                      controller: atkPointsController,
+                      decoration: const InputDecoration(labelText: 'Pontos de Ataque'),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: TextFormField(
-                        controller: qtyController,
-                        decoration: const InputDecoration(labelText: 'Quantidade'),
-                        keyboardType: TextInputType.number,
-                      ),
+                    const SizedBox(height: 12),
+                  ] else if (category == 'armor') ...[
+                    TextFormField(
+                      controller: defPointsController,
+                      decoration: const InputDecoration(labelText: 'Pontos de Defesa'),
                     ),
+                    const SizedBox(height: 12),
                   ],
-                ),
-              ],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: weightController,
+                          decoration: const InputDecoration(labelText: 'Slots Ocupados'),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: TextFormField(
+                          controller: qtyController,
+                          decoration: const InputDecoration(labelText: 'Quantidade'),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -506,6 +743,8 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                   accepted: true, // Jogador adicionando a si mesmo é auto-aceito
                   category: category,
                   campaignId: _charData!['campaign_id'],
+                  ataquePontos: category == 'weapon' ? atkPointsController.text.trim() : null,
+                  defesaPontos: category == 'armor' ? defPointsController.text.trim() : null,
                 );
                 if (success) {
                   await _loadInventory();
@@ -527,6 +766,8 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
     final nameController = TextEditingController(text: item['name'] ?? '');
     final descController = TextEditingController(text: item['description'] ?? '');
     final weightController = TextEditingController(text: item['weight'].toString());
+    final atkPointsController = TextEditingController(text: item['ataque_pontos'] ?? '');
+    final defPointsController = TextEditingController(text: item['defesa_pontos'] ?? '');
     final formKey = GlobalKey<FormState>();
     String category = item['category'] ?? 'item';
 
@@ -538,38 +779,56 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
         content: StatefulBuilder(
           builder: (context, setDialogState) => Form(
             key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  value: category,
-                  decoration: const InputDecoration(labelText: 'Categoria'),
-                  items: const [
-                    DropdownMenuItem(value: 'item', child: Text('Item Geral')),
-                    DropdownMenuItem(value: 'equipment', child: Text('Equipamento (Durabilidade)')),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: category,
+                    decoration: const InputDecoration(labelText: 'Categoria'),
+                    items: [
+                      const DropdownMenuItem(value: 'item', child: Text('Item Geral')),
+                      const DropdownMenuItem(value: 'weapon', child: Text('Arma (Equipamento)')),
+                      const DropdownMenuItem(value: 'armor', child: Text('Armadura (Equipamento)')),
+                      if (category == 'equipment')
+                        const DropdownMenuItem(value: 'equipment', child: Text('Equipamento (Legado)')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setDialogState(() => category = val);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: nameController,
+                    decoration: const InputDecoration(labelText: 'Nome'),
+                    validator: (v) => v == null || v.isEmpty ? 'Insira o nome' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: descController,
+                    decoration: const InputDecoration(labelText: 'Descrição'),
+                  ),
+                  const SizedBox(height: 12),
+                  if (category == 'weapon') ...[
+                    TextFormField(
+                      controller: atkPointsController,
+                      decoration: const InputDecoration(labelText: 'Pontos de Ataque'),
+                    ),
+                    const SizedBox(height: 12),
+                  ] else if (category == 'armor') ...[
+                    TextFormField(
+                      controller: defPointsController,
+                      decoration: const InputDecoration(labelText: 'Pontos de Defesa'),
+                    ),
+                    const SizedBox(height: 12),
                   ],
-                  onChanged: (val) {
-                    if (val != null) setDialogState(() => category = val);
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Nome'),
-                  validator: (v) => v == null || v.isEmpty ? 'Insira o nome' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: descController,
-                  decoration: const InputDecoration(labelText: 'Descrição'),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: weightController,
-                  decoration: const InputDecoration(labelText: 'Peso (Kg)'),
-                  keyboardType: TextInputType.number,
-                ),
-              ],
+                  TextFormField(
+                    controller: weightController,
+                    decoration: const InputDecoration(labelText: 'Slots Ocupados'),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -588,6 +847,8 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                   description: descController.text.trim(),
                   weight: double.tryParse(weightController.text) ?? 0.0,
                   category: category,
+                  ataquePontos: category == 'weapon' ? atkPointsController.text.trim() : null,
+                  defesaPontos: category == 'armor' ? defPointsController.text.trim() : null,
                 );
                 await _loadInventory();
                 if (mounted) navigator.pop();
@@ -673,7 +934,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
   }
 
 
-  // Cálculos de Peso e Sobrecarga
+  // Cálculos de Peso/Slots e Sobrecarga
   double get _currentWeight {
     double total = 0.0;
     for (var item in _inventory) {
@@ -690,12 +951,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
   }
 
   double get _weightCapacity {
-    if (_charData == null) return 50.0;
-    final attrs = _charData!['attributes'] as Map<String, dynamic>? ?? {};
-    final con = double.tryParse(attrs['CON']?.toString() ?? '10') ?? 10.0;
-    final str = double.tryParse(attrs['FOR']?.toString() ?? '10') ?? 10.0;
-    // Fórmulas da Ficha: Capacidade de Carga = CON * FOR
-    return con * str;
+    return 15.0;
   }
 
   bool get _isOverloaded => _currentWeight > _weightCapacity;
@@ -719,7 +975,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
     final hasDiary = !widget.isReadOnly;
 
     return DefaultTabController(
-      length: hasDiary ? 6 : 5,
+      length: hasDiary ? 7 : 6,
       child: Scaffold(
         appBar: AppBar(
           title: Text('${_charData!['name']} (Nível ${_charData!['level']})'.toUpperCase()),
@@ -731,6 +987,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
             tabs: [
               const Tab(text: 'VITAIS'),
               const Tab(text: 'ATRIBUTOS'),
+              const Tab(text: 'APTIDÕES'),
               const Tab(text: 'PRÓTESES'),
               const Tab(text: 'INVENTÁRIO'),
               const Tab(text: 'HABILIDADES'),
@@ -746,16 +1003,19 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
             // ABA 2: ATRIBUTOS & SKILLS
             _buildAttributesTab(attrs),
 
-            // ABA 3: PRÓTESES
+            // ABA 3: APTIDÕES
+            _buildAptitudesTab(isDead),
+
+            // ABA 4: PRÓTESES
             _buildProstheticsTab(isDead),
 
-            // ABA 4: INVENTÁRIO
+            // ABA 5: INVENTÁRIO
             _buildInventoryTab(isDead),
 
-            // ABA 5: HABILIDADES
+            // ABA 6: HABILIDADES
             _buildAbilitiesTab(isDead),
 
-            // ABA 6: DIÁRIO
+            // ABA 7: DIÁRIO
             if (hasDiary) _buildDiaryTab(isDead),
           ],
         ),
@@ -845,6 +1105,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
 
   Widget _buildEffectsSection(bool isDead) {
     final efeitos = List<Map<String, dynamic>>.from(_charData!['efeitos'] ?? []);
+    final selectedApts = List<String>.from(_charData!['aptitudes'] ?? []);
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -860,12 +1121,12 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
             ),
           ],
         ),
-        if (efeitos.isEmpty)
+        if (efeitos.isEmpty && selectedApts.isEmpty)
           const Padding(
             padding: EdgeInsets.all(8.0),
             child: Text('Nenhum efeito ativo.', style: TextStyle(color: Colors.white54)),
           )
-        else
+        else ...[
           ...efeitos.asMap().entries.map((entry) {
             final idx = entry.key;
             final ef = entry.value;
@@ -885,6 +1146,53 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
               ),
             );
           }),
+          ...selectedApts.map((apt) {
+            const Map<String, String> aptitudesEffects = {
+              'Escamas de dragão': 'ganha +2 pontos de defesa em cada armadura que esteja usando',
+              'Organismo de ferro': 'ganha um resistência de +5 contra envenenamento',
+              'Alimentação nutritiva': 'recupera +15 de vida ao comer alguma coisa',
+              'Alta imunidade': 'não sofre penalizações climáticas',
+              'Lenhador': '+5 em dano corpo a corpo',
+              'Mineiro': '+3 em testes de força',
+              'Fisioculturista': '-4 no dano corpo a corpo sofrido',
+              'Bucha de canhão': 'não recebe dano ao ser arremessado ou saltar em cima de inimigos',
+              'Atleta Olimpico': '+5 em qualquer teste de atletismo',
+              'Movimentos rápidos': 'vantagem de +3 em tentar se esquivar',
+              'Em boa forma': 'movimentação não sofre penalização de movimentação',
+              'Fôlego redobrado': 'toda perda de consciência é reduzida pela metade do valor sofrido',
+              'Mestre das Armas': 'capaz de usar qualquer arma até 2 níveis acima',
+              'Piloto experiente': 'sabe conduzir qualquer veículo',
+              'Lutador profissional': '+4 de dano com armas contundentes e armas brancas',
+              'Atirador': 'o alcance de precisão é aumentado em +5 metros (quadrados)',
+              'Devorador de livros': 'capaz de ler qualquer livro em até 3 turnos de ações',
+              'Hacker': 'consegue acessar qualquer painel de segurança',
+              'Instruído a ensinar': 'pode ensinar a outro jogador uma perícia que já saiba dando +1 ponto na determinada perícia do outro jogador',
+              'Convincente': 'inimigos ou NPCs podem acreditar em informações falsas que o jogador der',
+              'Mestre instrumentalista': 'capaz de tocar bem qualquer instrumento',
+              'Mestre sociável': 'pode conseguir informações apenas conversando com NPCs',
+              'Boas gorjetas': 'ao realizar um trabalho pode ganhar um bônus na recompensa',
+              'Pechincheiro': 'consegue comprar qualquer coisa pela metade do preço',
+              'Mente blindada': 'pode tentar resistir a ataques de mentalicos',
+              'Espirituoso': 'consegue ter respostas dos deuses em locais sagrados',
+              'Ilusionista': 'pode tentar criar uma ilusão permanente em um local',
+              'Favores Divinos': 'como servo fiel dos deuses vc é frequentemente abençoado com alguma ajuda dos deuses',
+              'Sentidos aguçados': 'testes de percepção recebem vantagem de +5 no dado',
+              'Armadilheiro': 'ao localizar armadilhas permite que o grupo passe por elas sem que precise desarma-la',
+              'Caçador profissional': 'conhece os padrões animais podendo prever ações ou até mesmo domar animais',
+              'Rei do Jogo': 'percebe trapaças e pode fazer até 3 palpites ao jogar Yankas',
+            };
+            final desc = aptitudesEffects[apt] ?? '';
+            return Card(
+              color: SteampunkTheme.castIron.withValues(alpha: 0.8),
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                title: Text(apt, style: const TextStyle(fontWeight: FontWeight.bold, color: SteampunkTheme.copper)),
+                subtitle: Text(desc, style: const TextStyle(color: Colors.white70)),
+                trailing: const Icon(Icons.star, color: SteampunkTheme.brassGlow, size: 20),
+              ),
+            );
+          }),
+        ],
       ],
     );
   }
@@ -1461,6 +1769,10 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
     // Vapor / Óleo Sliders para próteses steampunk
     final double v = double.tryParse(_charData!['vapor']?.toString() ?? '0') ?? 0.0;
     final double o = double.tryParse(_charData!['oleo']?.toString() ?? '0') ?? 0.0;
+    final List<dynamic> prostheticsList = List<dynamic>.from(_charData!['prosthetics'] ?? []);
+    final isReadOnly = widget.isReadOnly || isDead;
+
+    final bodyParts = ['Cabeça', 'Tronco', 'Braço Direito', 'Braço Esquerdo', 'Perna Direita', 'Perna Esquerda'];
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -1474,6 +1786,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
           ),
           const SizedBox(height: 16),
           Card(
+            color: SteampunkTheme.castIron,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -1490,7 +1803,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                     min: 0,
                     max: 100,
                     activeColor: Colors.cyan,
-                    onChanged: isDead ? null : (val) => _updateVital('vapor', val.toInt()),
+                    onChanged: isReadOnly ? null : (val) => _updateVital('vapor', val.toInt()),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -1505,25 +1818,243 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                     min: 0,
                     max: 100,
                     activeColor: Colors.amber,
-                    onChanged: isDead ? null : (val) => _updateVital('oleo', val.toInt()),
+                    onChanged: isReadOnly ? null : (val) => _updateVital('oleo', val.toInt()),
                   ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 24),
-          // Descrição livre das Próteses instaladas
-          TextFormField(
-            initialValue: _charData!['c_corpo'] ?? '',
-            maxLines: 4,
-            decoration: const InputDecoration(
-              labelText: 'Descrição de Implantes e Próteses instaladas',
-              alignLabelWithHint: true,
-            ),
-            readOnly: isDead,
-            onChanged: (text) => _updateVital('c_corpo', text),
+          Text(
+            'IMPLANTES INSTALADOS',
+            style: GoogleFonts.cinzel(color: SteampunkTheme.copper, fontWeight: FontWeight.bold, fontSize: 18),
+            textAlign: TextAlign.center,
           ),
+          const SizedBox(height: 16),
+          ...bodyParts.map((part) {
+            final partProsthetics = prostheticsList.where((p) => p['body_part'] == part).toList();
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 16, bottom: 8),
+                  child: Text(
+                    part.toUpperCase(),
+                    style: GoogleFonts.cinzel(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: partProsthetics.isNotEmpty ? SteampunkTheme.brassGlow : Colors.white24,
+                    ),
+                  ),
+                ),
+                if (partProsthetics.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(left: 8.0, bottom: 8.0),
+                    child: Text(
+                      'Nenhum implante registrado nesta parte.',
+                      style: TextStyle(color: Colors.white24, fontSize: 12, fontStyle: FontStyle.italic),
+                    ),
+                  )
+                else
+                  ...partProsthetics.map((prosthetic) {
+                    final pName = prosthetic['name'] as String? ?? 'Sem Nome';
+                    final vCons = prosthetic['vapor_consumption'] ?? 0;
+                    final oCons = prosthetic['oil_consumption'] ?? 0;
+                    final obs = prosthetic['observations'] as String? ?? '';
+
+                    return Card(
+                      color: SteampunkTheme.castIron,
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        title: Text(
+                          pName.toUpperCase(),
+                          style: GoogleFonts.cinzel(fontWeight: FontWeight.bold, color: SteampunkTheme.copper),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Consumo: $vCons Psi Vapor | $oCons Lt Óleo',
+                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
+                            if (obs.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4.0),
+                                child: Text(
+                                  'Obs: $obs',
+                                  style: const TextStyle(color: Colors.white38, fontSize: 12),
+                                ),
+                              ),
+                          ],
+                        ),
+                        trailing: isReadOnly
+                            ? null
+                            : IconButton(
+                                icon: const Icon(Icons.delete_outline, color: SteampunkTheme.bloodRed),
+                                onPressed: () {
+                                  final newList = List<dynamic>.from(prostheticsList);
+                                  newList.removeWhere((p) => p['id'] == prosthetic['id']);
+                                  _updateVital('prosthetics', newList);
+                                },
+                              ),
+                      ),
+                    );
+                  }),
+                const Divider(color: Colors.white10),
+              ],
+            );
+          }),
+          if (!isReadOnly) ...[
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => _onAddProsthetic(prostheticsList),
+              child: const Text('ADICIONAR NOVA PRÓTESE'),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  void _onAddProsthetic(List<dynamic> currentList) {
+    final nameCtrl = TextEditingController();
+    final vaporCtrl = TextEditingController(text: '0');
+    final oilCtrl = TextEditingController(text: '0');
+    final obsCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    String selectedPart = 'Cabeça';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx2, setDialogState) => AlertDialog(
+          backgroundColor: SteampunkTheme.castIron,
+          title: Text('ADICIONAR NOVA PRÓTESE', style: Theme.of(context).textTheme.titleLarge),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: selectedPart,
+                    decoration: const InputDecoration(labelText: 'Parte do Corpo'),
+                    items: const [
+                      DropdownMenuItem(value: 'Cabeça', child: Text('Cabeça')),
+                      DropdownMenuItem(value: 'Tronco', child: Text('Tronco')),
+                      DropdownMenuItem(value: 'Braço Direito', child: Text('Braço Direito')),
+                      DropdownMenuItem(value: 'Braço Esquerdo', child: Text('Braço Esquerdo')),
+                      DropdownMenuItem(value: 'Perna Direita', child: Text('Perna Direita')),
+                      DropdownMenuItem(value: 'Perna Esquerda', child: Text('Perna Esquerda')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setDialogState(() => selectedPart = val);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(labelText: 'Nome da Prótese'),
+                    validator: (v) => v == null || v.isEmpty ? 'Insira o nome' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: vaporCtrl,
+                          decoration: const InputDecoration(labelText: 'Vapor (Psi)'),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: TextFormField(
+                          controller: oilCtrl,
+                          decoration: const InputDecoration(labelText: 'Óleo (Lt)'),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: obsCtrl,
+                    decoration: const InputDecoration(labelText: 'Observações'),
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('CANCELAR', style: TextStyle(color: Colors.white70)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  final newProsthetic = {
+                    'id': DateTime.now().millisecondsSinceEpoch.toString(),
+                    'name': nameCtrl.text.trim(),
+                    'body_part': selectedPart,
+                    'vapor_consumption': int.tryParse(vaporCtrl.text) ?? 0,
+                    'oil_consumption': int.tryParse(oilCtrl.text) ?? 0,
+                    'observations': obsCtrl.text.trim(),
+                  };
+                  final newList = List<dynamic>.from(currentList)..add(newProsthetic);
+                  _updateVital('prosthetics', newList);
+                  Navigator.pop(ctx);
+                }
+              },
+              child: const Text('ADICIONAR'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCurrencyIndicator(String label, int value, IconData icon, Color accentColor) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: SteampunkTheme.leatherBark,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: SteampunkTheme.copper.withValues(alpha: 0.5), width: 1),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: accentColor, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: GoogleFonts.cinzel(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: SteampunkTheme.copper,
+                    ),
+                  ),
+                  Text(
+                    '$value',
+                    style: GoogleFonts.specialElite(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1531,6 +2062,20 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
   Widget _buildInventoryTab(bool isDead) {
     return Column(
       children: [
+        // Painel de Moedas
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          color: SteampunkTheme.castIron.withValues(alpha: 0.8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildCurrencyIndicator('DRAX', _charData!['drax'] ?? 0, Icons.monetization_on, Colors.amber),
+              const SizedBox(width: 16),
+              _buildCurrencyIndicator('CRÉDITOS', _charData!['creditos'] ?? 0, Icons.token, Colors.tealAccent),
+            ],
+          ),
+        ),
+
         // Barra de Capacidade de Carga
         Container(
           padding: const EdgeInsets.all(16),
@@ -1542,11 +2087,11 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'CAPACIDADE DE CARGA (FOR * CON)',
+                    'ESPAÇOS OCUPADOS (MÁX: 15 SLOTS)',
                     style: GoogleFonts.cinzel(color: SteampunkTheme.copper, fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    '${_currentWeight.toStringAsFixed(1)} / ${_weightCapacity.toStringAsFixed(1)} Kg',
+                    '${_currentWeight.toStringAsFixed(1)} / ${_weightCapacity.toStringAsFixed(1)} Slots',
                     style: GoogleFonts.specialElite(
                       color: _isOverloaded ? SteampunkTheme.bloodRed : Colors.white,
                       fontWeight: FontWeight.bold,
@@ -1585,10 +2130,11 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (_inventory.where((inv) => (inv['items']?['category'] ?? 'item') == 'equipment').isNotEmpty) ...[
+                // 1. ARMAS
+                if (_inventory.where((inv) => (inv['items']?['category'] ?? 'item') == 'weapon').isNotEmpty) ...[
                   Padding(
                     padding: const EdgeInsets.only(left: 16, top: 16, bottom: 8),
-                    child: Text('EQUIPAMENTOS', style: GoogleFonts.cinzel(color: SteampunkTheme.copper, fontWeight: FontWeight.bold, fontSize: 18)),
+                    child: Text('ARMAS', style: GoogleFonts.cinzel(color: SteampunkTheme.copper, fontWeight: FontWeight.bold, fontSize: 18)),
                   ),
                   ListView.builder(
                     shrinkWrap: true,
@@ -1596,15 +2142,17 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                     itemCount: _inventory.length,
                     itemBuilder: (context, idx) {
                       final inv = _inventory[idx];
-                      if ((inv['items']?['category'] ?? 'item') != 'equipment') return const SizedBox.shrink();
+                      if ((inv['items']?['category'] ?? 'item') != 'weapon') return const SizedBox.shrink();
                       return _buildInventoryCard(inv, isDead);
                     },
                   ),
                 ],
-                if (_inventory.where((inv) => (inv['items']?['category'] ?? 'item') != 'equipment').isNotEmpty) ...[
+
+                // 2. ARMADURAS
+                if (_inventory.where((inv) => (inv['items']?['category'] ?? 'item') == 'armor').isNotEmpty) ...[
                   Padding(
                     padding: const EdgeInsets.only(left: 16, top: 16, bottom: 8),
-                    child: Text('ITENS', style: GoogleFonts.cinzel(color: SteampunkTheme.copper, fontWeight: FontWeight.bold, fontSize: 18)),
+                    child: Text('ARMADURAS', style: GoogleFonts.cinzel(color: SteampunkTheme.copper, fontWeight: FontWeight.bold, fontSize: 18)),
                   ),
                   ListView.builder(
                     shrinkWrap: true,
@@ -1612,7 +2160,25 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                     itemCount: _inventory.length,
                     itemBuilder: (context, idx) {
                       final inv = _inventory[idx];
-                      if ((inv['items']?['category'] ?? 'item') == 'equipment') return const SizedBox.shrink();
+                      if ((inv['items']?['category'] ?? 'item') != 'armor') return const SizedBox.shrink();
+                      return _buildInventoryCard(inv, isDead);
+                    },
+                  ),
+                ],
+
+                // 3. ITENS GERAIS
+                if (_inventory.where((inv) => !['weapon', 'armor'].contains(inv['items']?['category'] ?? 'item')).isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16, top: 16, bottom: 8),
+                    child: Text('ITENS GERAIS', style: GoogleFonts.cinzel(color: SteampunkTheme.copper, fontWeight: FontWeight.bold, fontSize: 18)),
+                  ),
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _inventory.length,
+                    itemBuilder: (context, idx) {
+                      final inv = _inventory[idx];
+                      if (['weapon', 'armor'].contains(inv['items']?['category'] ?? 'item')) return const SizedBox.shrink();
                       return _buildInventoryCard(inv, isDead);
                     },
                   ),
@@ -1643,7 +2209,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
     final qty = inv['quantity'] as int? ?? 1;
 
     final cat = item['category'] ?? 'item';
-    final isEq = cat == 'equipment';
+    final isEq = cat == 'weapon' || cat == 'armor' || cat == 'equipment';
     final durability = inv['durability'] as int? ?? 20;
 
     return Card(
@@ -1666,9 +2232,20 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                         style: GoogleFonts.cinzel(fontWeight: FontWeight.bold, color: isAccepted ? Colors.white : SteampunkTheme.copper),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        '${item['description'] ?? 'Sem descrição'} | Peso: ${weight}Kg',
-                        style: Theme.of(context).textTheme.bodyMedium,
+                      Builder(
+                        builder: (context) {
+                          final slotsStr = weight == weight.toInt() ? '${weight.toInt()}' : '$weight';
+                          String detailsStr = '${item['description'] ?? 'Sem descrição'} | Slots: $slotsStr';
+                          if (cat == 'weapon') {
+                            detailsStr += ' | ATK: ${item['ataque_pontos'] ?? 'N/A'}';
+                          } else if (cat == 'armor') {
+                            detailsStr += ' | DEF: ${item['defesa_pontos'] ?? 'N/A'}';
+                          }
+                          return Text(
+                            detailsStr,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          );
+                        },
                       ),
                     ],
                   ),

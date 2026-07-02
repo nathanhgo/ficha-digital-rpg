@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../data/npc_repository.dart';
 import '../../campaign/presentation/campaigns_controller.dart';
 import '../../../core/theme/theme.dart';
+import '../../../core/utils/storage_helper.dart';
 
 class NpcsCatalogScreen extends ConsumerStatefulWidget {
   const NpcsCatalogScreen({super.key});
@@ -47,6 +49,10 @@ class _NpcsCatalogScreenState extends ConsumerState<NpcsCatalogScreen> {
     final fvCtrl = TextEditingController(text: (npcToEdit?['max_fv'] ?? 10).toString());
     final vigorCtrl = TextEditingController(text: (npcToEdit?['max_vigor'] ?? 10).toString());
     
+    String? avatarUrl = npcToEdit?['avatar_url'];
+    final atkCtrl = TextEditingController(text: (npcToEdit?['ataque'] ?? 0).toString());
+    final defCtrl = TextEditingController(text: (npcToEdit?['defesa'] ?? 0).toString());
+    
     final attrs = Map<String, dynamic>.from(npcToEdit?['attributes'] ?? {
       'FORÇA': 10, 'AGILIDADE': 10, 'DESTREZA': 10, 'CONSTITUIÇÃO': 10,
       'INTELIGÊNCIA': 10, 'PERCEPÇÃO': 10, 'VONTADE': 10, 'CARISMA': 10
@@ -64,6 +70,47 @@ class _NpcsCatalogScreenState extends ConsumerState<NpcsCatalogScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Avatar Section
+                  Center(
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 40,
+                          backgroundColor: SteampunkTheme.leatherBark,
+                          backgroundImage: avatarUrl != null && avatarUrl!.isNotEmpty
+                              ? NetworkImage(avatarUrl!)
+                              : null,
+                          child: avatarUrl == null || avatarUrl!.isEmpty
+                              ? const Icon(Icons.adb, size: 40, color: SteampunkTheme.copper)
+                              : null,
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: CircleAvatar(
+                            backgroundColor: SteampunkTheme.copper,
+                            radius: 14,
+                            child: IconButton(
+                              icon: const Icon(Icons.camera_alt, size: 12, color: Colors.white),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () async {
+                                final url = await SupabaseStorageHelper.pickAndUploadFile(
+                                  fileType: FileType.image,
+                                );
+                                if (url != null) {
+                                  setDialogState(() {
+                                    avatarUrl = url;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Nome')),
                   const SizedBox(height: 8),
                   TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Descrição (Opcional)'), maxLines: 3),
@@ -73,6 +120,26 @@ class _NpcsCatalogScreenState extends ConsumerState<NpcsCatalogScreen> {
                       Expanded(child: TextField(controller: fvCtrl, decoration: const InputDecoration(labelText: 'Força Vital (Máx)'), keyboardType: TextInputType.number)),
                       const SizedBox(width: 8),
                       Expanded(child: TextField(controller: vigorCtrl, decoration: const InputDecoration(labelText: 'Vigor (Máx)'), keyboardType: TextInputType.number)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: atkCtrl,
+                          decoration: const InputDecoration(labelText: 'Ataque'),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: defCtrl,
+                          decoration: const InputDecoration(labelText: 'Defesa'),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
                     ],
                   ),
                   const Divider(color: SteampunkTheme.copper, height: 32),
@@ -110,6 +177,9 @@ class _NpcsCatalogScreenState extends ConsumerState<NpcsCatalogScreen> {
             ElevatedButton(
               onPressed: () async {
                 if (nameCtrl.text.isEmpty) return;
+                final atk = int.tryParse(atkCtrl.text) ?? 0;
+                final def = int.tryParse(defCtrl.text) ?? 0;
+                
                 if (npcToEdit == null) {
                   await _npcRepo.createNpc(
                     campaignId: _selectedCampaignId!,
@@ -119,6 +189,9 @@ class _NpcsCatalogScreenState extends ConsumerState<NpcsCatalogScreen> {
                     maxVigor: int.tryParse(vigorCtrl.text) ?? 10,
                     attributes: attrs,
                     habilidades: [],
+                    ataque: atk,
+                    defesa: def,
+                    avatarUrl: avatarUrl,
                   );
                 } else {
                   await _npcRepo.updateNpc(npcToEdit['id'], {
@@ -127,9 +200,12 @@ class _NpcsCatalogScreenState extends ConsumerState<NpcsCatalogScreen> {
                     'max_fv': int.tryParse(fvCtrl.text) ?? 10,
                     'max_vigor': int.tryParse(vigorCtrl.text) ?? 10,
                     'attributes': attrs,
+                    'ataque': atk,
+                    'defesa': def,
+                    'avatar_url': avatarUrl,
                   });
                 }
-                if (mounted) Navigator.pop(ctx);
+                if (ctx.mounted) Navigator.pop(ctx);
               },
               child: const Text('SALVAR'),
             ),
@@ -218,10 +294,32 @@ class _NpcsCatalogScreenState extends ConsumerState<NpcsCatalogScreen> {
                               decoration: BoxDecoration(
                                 color: SteampunkTheme.leatherBark,
                                 borderRadius: BorderRadius.circular(6),
+                                image: npc['avatar_url'] != null && npc['avatar_url'].toString().isNotEmpty
+                                    ? DecorationImage(
+                                        image: NetworkImage(npc['avatar_url'].toString()),
+                                        fit: BoxFit.cover,
+                                      )
+                                    : null,
                               ),
-                              child: const Icon(Icons.adb, color: SteampunkTheme.copper, size: 32),
+                              child: npc['avatar_url'] == null || npc['avatar_url'].toString().isEmpty
+                                  ? const Icon(Icons.adb, color: SteampunkTheme.copper, size: 32)
+                                  : null,
                             ),
-                            title: Text(npc['name'] ?? '', style: GoogleFonts.cinzel(fontWeight: FontWeight.bold)),
+                            title: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    npc['name'] ?? '',
+                                    style: GoogleFonts.cinzel(fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                Text(
+                                  'ATK: ${npc['ataque'] ?? 0} | DEF: ${npc['defesa'] ?? 0}',
+                                  style: GoogleFonts.specialElite(fontSize: 12, color: SteampunkTheme.copper),
+                                ),
+                              ],
+                            ),
                             subtitle: Text(
                               npc['description'] ?? 'Sem descrição',
                               maxLines: 2,

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../data/notification_repository.dart';
 import '../../character/data/character_repository.dart';
 import '../../session/data/session_repository.dart';
+import '../../public_documents/data/document_repository.dart';
 import '../../../core/theme/theme.dart';
 
 class NotificationsTab extends ConsumerStatefulWidget {
@@ -86,6 +88,17 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
                 dateStr: dateStr,
                 isRead: isRead,
                 userId: widget.userId,
+                onAction: () => _notiRepo.markAsRead(id),
+              );
+            }
+
+            if (type == 'document_moderation') {
+              return _DocumentModerationCard(
+                notificationId: id,
+                documentId: metadata['document_id'] as String? ?? '',
+                message: message,
+                dateStr: dateStr,
+                isRead: isRead,
                 onAction: () => _notiRepo.markAsRead(id),
               );
             }
@@ -367,6 +380,234 @@ class _SessionInviteCardState extends State<_SessionInviteCard> {
                       icon: const Icon(Icons.check, size: 16),
                       label: Text('ACEITAR', style: GoogleFonts.cinzel(fontSize: 12)),
                     ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Document moderation card with popup content ──────────────────────────
+
+class _DocumentModerationCard extends StatefulWidget {
+  final String notificationId, documentId, message, dateStr;
+  final bool isRead;
+  final VoidCallback onAction;
+
+  const _DocumentModerationCard({
+    required this.notificationId,
+    required this.documentId,
+    required this.message,
+    required this.dateStr,
+    required this.isRead,
+    required this.onAction,
+  });
+
+  @override
+  State<_DocumentModerationCard> createState() => _DocumentModerationCardState();
+}
+
+class _DocumentModerationCardState extends State<_DocumentModerationCard> {
+  final _docRepo = DocumentRepository();
+  final _notiRepo = NotificationRepository();
+  bool _loading = false;
+  bool _responded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _responded = widget.isRead;
+  }
+
+  void _onModerate(String status) async {
+    setState(() => _loading = true);
+    final success = await _docRepo.updateDocumentStatus(widget.documentId, status);
+    if (success) {
+      await _notiRepo.markAsRead(widget.notificationId);
+      widget.onAction();
+      setState(() {
+        _responded = true;
+      });
+    }
+    setState(() => _loading = false);
+  }
+
+  void _onReadDocument() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: SteampunkTheme.castIron,
+        title: Text(
+          'MODERAÇÃO DE DOCUMENTO',
+          style: GoogleFonts.cinzel(color: SteampunkTheme.copper, fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: FutureBuilder<Map<String, dynamic>?>(
+            future: _docRepo.fetchDocumentById(widget.documentId),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox(
+                  height: 150,
+                  child: Center(
+                    child: CircularProgressIndicator(color: SteampunkTheme.copper),
+                  ),
+                );
+              }
+              final doc = snapshot.data;
+              if (doc == null) {
+                return Text(
+                  'Erro ao carregar o documento ou ele foi excluído.',
+                  style: GoogleFonts.ebGaramond(color: Colors.white70),
+                );
+              }
+
+              final title = doc['title'] ?? 'Sem Título';
+              final author = doc['profiles']?['username'] ?? 'Desconhecido';
+              final category = doc['category'] ?? 'outros';
+              final content = doc['content'] ?? '';
+              final imageUrl = doc['image_url'] as String?;
+
+              return SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      title.toUpperCase(),
+                      style: GoogleFonts.cinzel(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: SteampunkTheme.copper,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Categoria: ${category.toString().toUpperCase()} | Autor: $author',
+                      style: GoogleFonts.ebGaramond(fontSize: 12, color: Colors.white38),
+                      textAlign: TextAlign.center,
+                    ),
+                    const Divider(color: SteampunkTheme.copper, height: 24),
+                    if (imageUrl != null && imageUrl.toString().isNotEmpty) ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.network(
+                          imageUrl.toString(),
+                          height: 200,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    MarkdownBody(
+                      data: content,
+                      styleSheet: MarkdownStyleSheet(
+                        p: Theme.of(context).textTheme.bodyMedium,
+                        h1: GoogleFonts.cinzel(fontSize: 20, color: SteampunkTheme.copper, fontWeight: FontWeight.bold),
+                        h2: GoogleFonts.cinzel(fontSize: 18, color: SteampunkTheme.copper),
+                        h3: GoogleFonts.cinzel(fontSize: 16, color: SteampunkTheme.brassGlow),
+                        listBullet: const TextStyle(color: SteampunkTheme.copper),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'VOLTAR',
+              style: GoogleFonts.cinzel(color: Colors.white70),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: SteampunkTheme.castIron,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: SteampunkTheme.copper.withValues(alpha: 0.7), width: 1.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.rate_review, color: SteampunkTheme.copper, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'MODERAÇÃO DE DOCUMENTO',
+                        style: GoogleFonts.cinzel(fontWeight: FontWeight.bold, color: SteampunkTheme.copper, fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(widget.dateStr, style: GoogleFonts.specialElite(fontSize: 11, color: Colors.white38)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(widget.message, style: GoogleFonts.ebGaramond(fontSize: 14, color: Colors.white70)),
+            const SizedBox(height: 16),
+            if (_responded)
+              Text(
+                'Resposta registrada.',
+                style: GoogleFonts.cinzel(color: Colors.green, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              )
+            else if (_loading)
+              const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: SteampunkTheme.copper, strokeWidth: 2)))
+            else
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: _onReadDocument,
+                    icon: const Icon(Icons.menu_book, size: 16, color: SteampunkTheme.castIron),
+                    label: Text('LER DOCUMENTO', style: GoogleFonts.cinzel(color: SteampunkTheme.castIron, fontWeight: FontWeight.bold, fontSize: 12)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: SteampunkTheme.copper,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _onModerate('rejected'),
+                          icon: const Icon(Icons.close, size: 16, color: SteampunkTheme.bloodRed),
+                          label: Text('RECUSAR', style: GoogleFonts.cinzel(color: SteampunkTheme.bloodRed, fontSize: 12)),
+                          style: OutlinedButton.styleFrom(side: const BorderSide(color: SteampunkTheme.bloodRed)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _onModerate('approved'),
+                          icon: const Icon(Icons.check, size: 16),
+                          label: Text('APROVAR', style: GoogleFonts.cinzel(fontSize: 12)),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

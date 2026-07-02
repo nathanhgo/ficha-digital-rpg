@@ -163,6 +163,43 @@ class CharacterRepository {
     }
   }
 
+  Future<void> addMoney(String characterId, String currency, int amount) async {
+    try {
+      final charDoc = await _client.from('characters').select('drax, creditos, owner_id, name').eq('id', characterId).single();
+      final currentDrax = charDoc['drax'] as int? ?? 0;
+      final currentCreditos = charDoc['creditos'] as int? ?? 0;
+      final ownerId = charDoc['owner_id'] as String;
+      final charName = charDoc['name'] as String;
+
+      int newDrax = currentDrax;
+      int newCreditos = currentCreditos;
+
+      if (currency == 'drax') {
+        newDrax += amount;
+      } else {
+        newCreditos += amount;
+      }
+
+      await _client.from('characters').update({
+        'drax': newDrax,
+        'creditos': newCreditos,
+      }).eq('id', characterId);
+
+      try {
+        final currencyName = currency == 'drax' ? 'Drax' : 'Créditos';
+        await _client.from('notifications').insert({
+          'user_id': ownerId,
+          'title': 'Dinheiro Recebido!',
+          'message': 'Seu personagem $charName recebeu $amount $currencyName do Mestre! Novo saldo: ${currency == 'drax' ? newDrax : newCreditos} $currencyName.',
+        });
+      } catch (e) {
+        debugPrint("Erro ao notificar recebimento de dinheiro: $e");
+      }
+    } catch (e) {
+      debugPrint("Erro ao adicionar dinheiro: $e");
+    }
+  }
+
   Future<void> updateCharacter(String characterId, Map<String, dynamic> data) async {
     try {
       await _client.from('characters').update(data).eq('id', characterId);

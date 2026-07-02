@@ -11,7 +11,7 @@ class DiceScreen extends StatefulWidget {
 }
 
 class _DiceScreenState extends State<DiceScreen> {
-  final Map<int, int> _selectedDice = {
+  final Map<dynamic, int> _selectedDice = {
     4: 0,
     6: 0,
     8: 0,
@@ -19,6 +19,7 @@ class _DiceScreenState extends State<DiceScreen> {
     12: 0,
     20: 0,
     100: 0,
+    'CORPO': 0,
   };
   
   int _bonus = 0;
@@ -26,13 +27,13 @@ class _DiceScreenState extends State<DiceScreen> {
   
   final _random = Random();
 
-  void _incrementDice(int sides) {
+  void _incrementDice(dynamic sides) {
     setState(() {
       _selectedDice[sides] = (_selectedDice[sides] ?? 0) + 1;
     });
   }
 
-  void _decrementDice(int sides) {
+  void _decrementDice(dynamic sides) {
     setState(() {
       if ((_selectedDice[sides] ?? 0) > 0) {
         _selectedDice[sides] = (_selectedDice[sides] ?? 0) - 1;
@@ -50,16 +51,27 @@ class _DiceScreenState extends State<DiceScreen> {
   void _rollDice() {
     int total = 0;
     List<String> details = [];
+    final bodyParts = ['Braço Direito', 'Braço Esquerdo', 'Cabeça', 'Tronco', 'Perna Esquerda', 'Perna Direita'];
     
     _selectedDice.forEach((sides, count) {
       if (count > 0) {
-        List<int> rolls = [];
-        for (int i = 0; i < count; i++) {
-          int roll = _random.nextInt(sides) + 1;
-          rolls.add(roll);
-          total += roll;
+        if (sides == 'CORPO') {
+          List<String> rolls = [];
+          for (int i = 0; i < count; i++) {
+            String part = bodyParts[_random.nextInt(bodyParts.length)];
+            rolls.add(part);
+          }
+          details.add('${count}dCORPO [${rolls.join(', ')}]');
+        } else {
+          final intSides = sides as int;
+          List<int> rolls = [];
+          for (int i = 0; i < count; i++) {
+            int roll = _random.nextInt(intSides) + 1;
+            rolls.add(roll);
+            total += roll;
+          }
+          details.add('${count}d$intSides [${rolls.join(', ')}]');
         }
-        details.add('${count}d$sides [${rolls.join(', ')}]');
       }
     });
     
@@ -81,13 +93,13 @@ class _DiceScreenState extends State<DiceScreen> {
     });
   }
 
-  void _editDiceCount(int sides, int currentCount) {
+  void _editDiceCount(dynamic sides, int currentCount) {
     final ctrl = TextEditingController(text: currentCount.toString());
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: SteampunkTheme.castIron,
-        title: Text('Quantidade (d$sides)', style: const TextStyle(color: SteampunkTheme.copper)),
+        title: Text(sides == 'CORPO' ? 'Quantidade (dCORPO)' : 'Quantidade (d$sides)', style: const TextStyle(color: SteampunkTheme.copper)),
         content: TextField(
           controller: ctrl,
           keyboardType: TextInputType.number,
@@ -273,7 +285,8 @@ class _DiceScreenState extends State<DiceScreen> {
     );
   }
 
-  Widget _buildDiceSelector(int sides, int count) {
+  Widget _buildDiceSelector(dynamic sides, int count) {
+    final displayLabel = sides == 'CORPO' ? 'dCORPO' : 'd$sides';
     return Container(
       width: 110,
       decoration: BoxDecoration(
@@ -286,9 +299,9 @@ class _DiceScreenState extends State<DiceScreen> {
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Text(
-              'd$sides',
+              displayLabel,
               style: GoogleFonts.cinzel(
-                fontSize: 24,
+                fontSize: sides == 'CORPO' ? 18 : 24,
                 fontWeight: FontWeight.bold,
                 color: count > 0 ? SteampunkTheme.copper : Colors.white54,
               ),

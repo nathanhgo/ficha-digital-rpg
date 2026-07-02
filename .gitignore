@@ -46,3 +46,6 @@ app.*.map.json
 
 # Dotenv
 .env
+
+# Agent Build Instructions
+ai-build-instructions/

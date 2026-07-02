@@ -56,6 +56,8 @@ class _ItemsCatalogScreenState extends ConsumerState<ItemsCatalogScreen> {
     final nameCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     final weightCtrl = TextEditingController(text: '1.0');
+    final atkPointsCtrl = TextEditingController();
+    final defPointsCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
     String? imageUrl;
     String category = 'item';
@@ -82,7 +84,8 @@ class _ItemsCatalogScreenState extends ConsumerState<ItemsCatalogScreen> {
                     decoration: const InputDecoration(labelText: 'Categoria'),
                     items: const [
                       DropdownMenuItem(value: 'item', child: Text('Item Geral')),
-                      DropdownMenuItem(value: 'equipment', child: Text('Equipamento (Durabilidade)')),
+                      DropdownMenuItem(value: 'weapon', child: Text('Arma (Equipamento)')),
+                      DropdownMenuItem(value: 'armor', child: Text('Armadura (Equipamento)')),
                     ],
                     onChanged: (val) {
                       if (val != null) setDialogState(() => category = val);
@@ -101,12 +104,25 @@ class _ItemsCatalogScreenState extends ConsumerState<ItemsCatalogScreen> {
                     maxLines: 3,
                   ),
                   const SizedBox(height: 12),
+                  if (category == 'weapon') ...[
+                    TextFormField(
+                      controller: atkPointsCtrl,
+                      decoration: const InputDecoration(labelText: 'Pontos de Ataque'),
+                    ),
+                    const SizedBox(height: 12),
+                  ] else if (category == 'armor') ...[
+                    TextFormField(
+                      controller: defPointsCtrl,
+                      decoration: const InputDecoration(labelText: 'Pontos de Defesa'),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   TextFormField(
                     controller: weightCtrl,
-                    decoration: const InputDecoration(labelText: 'Peso (kg)', suffixText: 'kg'),
+                    decoration: const InputDecoration(labelText: 'Slots Ocupados'),
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     validator: (v) {
-                      if (v == null || v.isEmpty) return 'Insira o peso';
+                      if (v == null || v.isEmpty) return 'Insira os slots';
                       if (double.tryParse(v) == null) return 'Número inválido';
                       return null;
                     },
@@ -147,6 +163,8 @@ class _ItemsCatalogScreenState extends ConsumerState<ItemsCatalogScreen> {
                     weight: double.parse(weightCtrl.text),
                     category: category,
                     imageUrl: imageUrl,
+                    ataquePontos: category == 'weapon' ? atkPointsCtrl.text.trim() : null,
+                    defesaPontos: category == 'armor' ? defPointsCtrl.text.trim() : null,
                   );
                   if (result != null && mounted) {
                     navigator.pop();
@@ -300,7 +318,18 @@ class _ItemsCatalogScreenState extends ConsumerState<ItemsCatalogScreen> {
                                       children: [
                                         if (desc.isNotEmpty)
                                           Text(desc, style: GoogleFonts.ebGaramond(color: Colors.white60, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
-                                        Text('${weight.toStringAsFixed(1)} kg', style: GoogleFonts.specialElite(color: Colors.white38, fontSize: 12)),
+                                        Builder(
+                                          builder: (context) {
+                                            final slotsStr = weight == weight.toInt() ? '${weight.toInt()}' : '$weight';
+                                            String detailsStr = 'Slots: $slotsStr';
+                                            if (item['category'] == 'weapon') {
+                                              detailsStr += ' | ATK: ${item['ataque_pontos'] ?? 'N/A'}';
+                                            } else if (item['category'] == 'armor') {
+                                              detailsStr += ' | DEF: ${item['defesa_pontos'] ?? 'N/A'}';
+                                            }
+                                            return Text(detailsStr, style: GoogleFonts.specialElite(color: Colors.white38, fontSize: 12));
+                                          },
+                                        ),
                                       ],
                                     ),
                                     trailing: IconButton(

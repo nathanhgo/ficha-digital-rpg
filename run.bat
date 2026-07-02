@@ -1,0 +1,3 @@
+@echo off
+echo Iniciando o app na porta 3000...
+flutter run -d web-server --web-port 3000

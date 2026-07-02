@@ -290,6 +290,112 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
     );
   }
 
+  void _onAwardMoney() async {
+    final chars = await _charRepo.fetchCharactersForCampaign(widget.campaignId);
+    if (!mounted) return;
+
+    final amountController = TextEditingController();
+    String targetCharId = 'all';
+    String selectedCurrency = 'drax';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: SteampunkTheme.castIron,
+            title: Text('DISTRIBUIR DINHEIRO', style: Theme.of(context).textTheme.titleLarge),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: targetCharId,
+                  dropdownColor: SteampunkTheme.leatherBark,
+                  decoration: const InputDecoration(labelText: 'Alvo'),
+                  items: [
+                    const DropdownMenuItem(value: 'all', child: Text('Todos os Personagens')),
+                    ...chars.map((c) => DropdownMenuItem(value: c['id'] as String, child: Text(c['name'] as String))),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) {
+                      setDialogState(() => targetCharId = v);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedCurrency,
+                  dropdownColor: SteampunkTheme.leatherBark,
+                  decoration: const InputDecoration(labelText: 'Moeda'),
+                  items: const [
+                    DropdownMenuItem(value: 'drax', child: Text('Drax')),
+                    DropdownMenuItem(value: 'creditos', child: Text('Créditos')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) {
+                      setDialogState(() => selectedCurrency = v);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: amountController,
+                  decoration: const InputDecoration(labelText: 'Quantidade'),
+                  keyboardType: TextInputType.number,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('CANCELAR', style: TextStyle(color: Colors.white70)),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final amount = int.tryParse(amountController.text) ?? 0;
+                  if (amount > 0) {
+                    final navigator = Navigator.of(ctx);
+                    final scaffoldMessenger = ScaffoldMessenger.of(context);
+                    
+                    if (targetCharId == 'all') {
+                      for (var char in chars) {
+                        await _charRepo.addMoney(
+                          char['id'] as String,
+                          selectedCurrency,
+                          amount,
+                        );
+                      }
+                    } else {
+                      await _charRepo.addMoney(
+                        targetCharId,
+                        selectedCurrency,
+                        amount,
+                      );
+                    }
+                    
+                    if (mounted) {
+                      final currencyName = selectedCurrency == 'drax' ? 'Drax' : 'Créditos';
+                      scaffoldMessenger.showSnackBar(
+                        SnackBar(
+                          content: Text(targetCharId == 'all' 
+                              ? 'Distribuído $amount $currencyName para todos!' 
+                              : 'Distribuído $amount $currencyName para o alvo!'),
+                          backgroundColor: SteampunkTheme.copper,
+                        ),
+                      );
+                      navigator.pop();
+                    }
+                  }
+                },
+                child: const Text('DISTRIBUIR'),
+              ),
+            ],
+          );
+        }
+      ),
+    );
+  }
+
   void _onDistributeItem() async {
     final chars = await _charRepo.fetchCharactersForCampaign(widget.campaignId);
     final templateItems = await _inventoryRepo.fetchTemplateItems(widget.campaignId);
@@ -304,6 +410,8 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
     final nameController = TextEditingController();
     final descController = TextEditingController();
     final weightController = TextEditingController(text: '1.0');
+    final atkPointsController = TextEditingController();
+    final defPointsController = TextEditingController();
     String category = 'item';
 
     if (!mounted) return;
@@ -368,7 +476,8 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
                     decoration: const InputDecoration(labelText: 'Categoria'),
                     items: const [
                       DropdownMenuItem(value: 'item', child: Text('Item Geral')),
-                      DropdownMenuItem(value: 'equipment', child: Text('Equipamento (Durabilidade)')),
+                      DropdownMenuItem(value: 'weapon', child: Text('Arma (Equipamento)')),
+                      DropdownMenuItem(value: 'armor', child: Text('Armadura (Equipamento)')),
                     ],
                     onChanged: (val) {
                       if (val != null) setDialogState(() => category = val);
@@ -379,7 +488,24 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
                   const SizedBox(height: 8),
                   TextFormField(controller: descController, decoration: const InputDecoration(labelText: 'Descrição')),
                   const SizedBox(height: 8),
-                  TextFormField(controller: weightController, decoration: const InputDecoration(labelText: 'Peso (Kg)'), keyboardType: TextInputType.number),
+                  if (category == 'weapon') ...[
+                    TextFormField(
+                      controller: atkPointsController,
+                      decoration: const InputDecoration(labelText: 'Pontos de Ataque'),
+                    ),
+                    const SizedBox(height: 8),
+                  ] else if (category == 'armor') ...[
+                    TextFormField(
+                      controller: defPointsController,
+                      decoration: const InputDecoration(labelText: 'Pontos de Defesa'),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  TextFormField(
+                    controller: weightController,
+                    decoration: const InputDecoration(labelText: 'Slots Ocupados'),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  ),
                 ],
                 const SizedBox(height: 8),
                 TextFormField(controller: qtyController, decoration: const InputDecoration(labelText: 'Quantidade'), keyboardType: TextInputType.number),
@@ -413,6 +539,8 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
                     accepted: false,
                     category: category,
                     campaignId: widget.campaignId,
+                    ataquePontos: category == 'weapon' ? atkPointsController.text.trim() : null,
+                    defesaPontos: category == 'armor' ? defPointsController.text.trim() : null,
                   );
                 }
                 if (success && mounted) {
@@ -597,8 +725,10 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
             children: [
               Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
                   children: [
                     ElevatedButton.icon(
                       onPressed: _onAwardXp,
@@ -609,6 +739,11 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
                       onPressed: _onDistributeItem,
                       icon: const Icon(Icons.card_giftcard),
                       label: const Text('DAR ITEM'),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _onAwardMoney,
+                      icon: const Icon(Icons.monetization_on),
+                      label: const Text('DAR DINHEIRO'),
                     ),
                   ],
                 ),
@@ -802,6 +937,12 @@ class _SessionMonitorScreenState extends ConsumerState<SessionMonitorScreen> {
                             icon: const Icon(Icons.card_giftcard),
                             label: const Text('ENVIAR ITEM'),
                             onPressed: _onDistributeItem,
+                          ),
+                          const SizedBox(height: 8),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.monetization_on_outlined),
+                            label: const Text('DAR DINHEIRO'),
+                            onPressed: _onAwardMoney,
                           ),
                         ],
                       ),
