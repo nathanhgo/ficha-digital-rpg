@@ -970,7 +970,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
       );
     }
 
-    final isDead = _charData!['is_dead'] == true || widget.isReadOnly;
+    final isDead = _charData!['is_dead'] == true;
     final attrs = _charData!['attributes'] as Map<String, dynamic>? ?? {};
     final hasDiary = !widget.isReadOnly;
 
@@ -1103,7 +1103,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
     setState(() => _charData = newData);
   }
 
-  Widget _buildEffectsSection(bool isDead) {
+  Widget _buildEffectsSection(bool isReadOnly) {
     final efeitos = List<Map<String, dynamic>>.from(_charData!['efeitos'] ?? []);
     final selectedApts = List<String>.from(_charData!['aptitudes'] ?? []);
     
@@ -1117,7 +1117,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
             Text('EFEITOS ATIVOS', style: GoogleFonts.cinzel(fontSize: 18, fontWeight: FontWeight.bold, color: SteampunkTheme.copper)),
             IconButton(
               icon: const Icon(Icons.add_circle, color: SteampunkTheme.copper),
-              onPressed: isDead ? null : _showAddEffectDialog,
+              onPressed: isReadOnly ? null : _showAddEffectDialog,
             ),
           ],
         ),
@@ -1141,7 +1141,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                 subtitle: Text('Alvo: ${ef['target']} ($valStr)'),
                 trailing: IconButton(
                   icon: const Icon(Icons.delete, color: SteampunkTheme.bloodRed),
-                  onPressed: isDead ? null : () => _removeEffect(idx),
+                  onPressed: isReadOnly ? null : () => _removeEffect(idx),
                 ),
               ),
             );
@@ -1255,6 +1255,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
   }
 
   Widget _buildVitalsTab(bool isDead) {
+    final isReadOnly = widget.isReadOnly || isDead;
     final int level = _charData!['level'] as int? ?? 0;
     final int currentXp = _charData!['xp'] as int? ?? 0;
     final int nextLevelXp = (level + 1) * 100;
@@ -1277,7 +1278,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                       ? const Icon(Icons.person, size: 60, color: SteampunkTheme.copper)
                       : null,
                 ),
-                if (!isDead)
+                if (!isReadOnly)
                   Positioned(
                     bottom: 0,
                     right: 0,
@@ -1362,7 +1363,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
             currentKey: 'current_fv',
             maxKey: 'max_fv',
             color: SteampunkTheme.bloodRed,
-            isDead: isDead,
+            isDead: isReadOnly,
           ),
           const SizedBox(height: 16),
 
@@ -1372,7 +1373,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
             currentKey: 'current_vigor',
             maxKey: 'max_vigor',
             color: Colors.green,
-            isDead: isDead,
+            isDead: isReadOnly,
           ),
           const SizedBox(height: 16),
 
@@ -1382,7 +1383,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
             currentKey: 'current_pm',
             maxKey: 'max_pm',
             color: Colors.blueAccent,
-            isDead: isDead,
+            isDead: isReadOnly,
           ),
           const SizedBox(height: 16),
 
@@ -1392,7 +1393,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
             key: 'sanidade',
             color: Colors.purple,
             maxVal: 100.0,
-            isDead: isDead,
+            isDead: isReadOnly,
           ),
           const SizedBox(height: 16),
 
@@ -1405,7 +1406,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                   key: 'fome',
                   color: Colors.orange,
                   maxVal: 100.0,
-                  isDead: isDead,
+                  isDead: isReadOnly,
                 ),
               ),
               const SizedBox(width: 16),
@@ -1415,7 +1416,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                   key: 'sede',
                   color: Colors.blue,
                   maxVal: 100.0,
-                  isDead: isDead,
+                  isDead: isReadOnly,
                 ),
               ),
             ],
@@ -1444,12 +1445,12 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
             children: [
               IconButton(
                 icon: const Icon(Icons.remove_circle_outline, color: SteampunkTheme.copper),
-                onPressed: isDead ? null : () => _updateVital('caos', math.max(0, (_charData!['caos'] as int? ?? 0) - 5)),
+                onPressed: isReadOnly ? null : () => _updateVital('caos', math.max(0, (_charData!['caos'] as int? ?? 0) - 5)),
               ),
               Text('AJUSTAR CAOS', style: Theme.of(context).textTheme.labelLarge),
               IconButton(
                 icon: const Icon(Icons.add_circle_outline, color: SteampunkTheme.copper),
-                onPressed: isDead ? null : () => _updateVital('caos', math.min(100, (_charData!['caos'] as int? ?? 0) + 5)),
+                onPressed: isReadOnly ? null : () => _updateVital('caos', math.min(100, (_charData!['caos'] as int? ?? 0) + 5)),
               ),
             ],
           ),
@@ -1459,17 +1460,17 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
             children: [
               IconButton(
                 icon: const Icon(Icons.remove_circle_outline, color: Colors.teal),
-                onPressed: isDead ? null : () => _updateVital('exposicao_rad', math.max(0, (_charData!['exposicao_rad'] as int? ?? 0) - 5)),
+                onPressed: isReadOnly ? null : () => _updateVital('exposicao_rad', math.max(0, (_charData!['exposicao_rad'] as int? ?? 0) - 5)),
               ),
               Text('AJUSTAR RADIAÇÃO', style: Theme.of(context).textTheme.labelLarge),
               IconButton(
                 icon: const Icon(Icons.add_circle_outline, color: Colors.teal),
-                onPressed: isDead ? null : () => _updateVital('exposicao_rad', math.min(100, (_charData!['exposicao_rad'] as int? ?? 0) + 5)),
+                onPressed: isReadOnly ? null : () => _updateVital('exposicao_rad', math.min(100, (_charData!['exposicao_rad'] as int? ?? 0) + 5)),
               ),
             ],
           ),
           const SizedBox(height: 24),
-          _buildEffectsSection(isDead),
+          _buildEffectsSection(isReadOnly),
         ],
       ),
     );
@@ -1589,7 +1590,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
   }
 
   Widget _buildAttributesTab(Map<String, dynamic> attributes) {
-    final isDead = _charData!['is_dead'] == true || widget.isReadOnly;
+    final isReadOnly = _charData!['is_dead'] == true || widget.isReadOnly;
     final Map<String, dynamic> skills = Map<String, dynamic>.from(_charData!['skills'] as Map? ?? {});
 
     int totalSpent = attributes.values.fold(0, (sum, val) => sum + (int.tryParse(val.toString()) ?? 0));
@@ -1668,13 +1669,13 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: Icon(Icons.remove_circle_outline, size: 20, color: isDead ? Colors.grey : SteampunkTheme.copper),
+                        icon: Icon(Icons.remove_circle_outline, size: 20, color: isReadOnly ? Colors.grey : SteampunkTheme.copper),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
-                        onPressed: isDead ? null : () => _updateAttribute(attr, val - 1),
+                        onPressed: isReadOnly ? null : () => _updateAttribute(attr, val - 1),
                       ),
                       InkWell(
-                        onTap: isDead ? null : () => _editAttributeValue(attr, val),
+                        onTap: isReadOnly ? null : () => _editAttributeValue(attr, val),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12.0),
                           child: Text(
@@ -1682,16 +1683,16 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                             style: GoogleFonts.specialElite(
                               fontSize: 14, 
                               decoration: TextDecoration.underline,
-                              color: isDead ? Colors.grey : Colors.white,
+                              color: isReadOnly ? Colors.grey : Colors.white,
                             ),
                           ),
                         ),
                       ),
                       IconButton(
-                        icon: Icon(Icons.add_circle_outline, size: 20, color: (isDead || availablePoints <= 0) ? Colors.grey : SteampunkTheme.copper),
+                        icon: Icon(Icons.add_circle_outline, size: 20, color: (isReadOnly || availablePoints <= 0) ? Colors.grey : SteampunkTheme.copper),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
-                        onPressed: isDead || availablePoints <= 0 ? null : () => _updateAttribute(attr, val + 1),
+                        onPressed: isReadOnly || availablePoints <= 0 ? null : () => _updateAttribute(attr, val + 1),
                       ),
                     ],
                   ),
@@ -1730,7 +1731,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.remove, size: 18, color: Colors.white70),
-                        onPressed: (!isDead && canSub)
+                        onPressed: (!isReadOnly && canSub)
                             ? () => _updateSkill(skill, currentSkillPoints - 1)
                             : null,
                       ),
@@ -1743,7 +1744,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.add, size: 18, color: Colors.white70),
-                        onPressed: (!isDead && canAdd)
+                        onPressed: (!isReadOnly && canAdd)
                             ? () => _updateSkill(skill, currentSkillPoints + 1)
                             : null,
                       ),
@@ -2060,6 +2061,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
   }
 
   Widget _buildInventoryTab(bool isDead) {
+    final isReadOnly = widget.isReadOnly || isDead;
     return Column(
       children: [
         // Painel de Moedas
@@ -2143,7 +2145,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                     itemBuilder: (context, idx) {
                       final inv = _inventory[idx];
                       if ((inv['items']?['category'] ?? 'item') != 'weapon') return const SizedBox.shrink();
-                      return _buildInventoryCard(inv, isDead);
+                      return _buildInventoryCard(inv, isReadOnly);
                     },
                   ),
                 ],
@@ -2161,7 +2163,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                     itemBuilder: (context, idx) {
                       final inv = _inventory[idx];
                       if ((inv['items']?['category'] ?? 'item') != 'armor') return const SizedBox.shrink();
-                      return _buildInventoryCard(inv, isDead);
+                      return _buildInventoryCard(inv, isReadOnly);
                     },
                   ),
                 ],
@@ -2179,7 +2181,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                     itemBuilder: (context, idx) {
                       final inv = _inventory[idx];
                       if (['weapon', 'armor'].contains(inv['items']?['category'] ?? 'item')) return const SizedBox.shrink();
-                      return _buildInventoryCard(inv, isDead);
+                      return _buildInventoryCard(inv, isReadOnly);
                     },
                   ),
                 ],
@@ -2188,7 +2190,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
           ),
         ),
 
-        if (!isDead)
+        if (!isReadOnly)
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: ElevatedButton(
@@ -2200,7 +2202,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
     );
   }
 
-  Widget _buildInventoryCard(Map<String, dynamic> inv, bool isDead) {
+  Widget _buildInventoryCard(Map<String, dynamic> inv, bool isReadOnly) {
     final item = inv['items'];
     if (item == null) return const SizedBox.shrink();
 
@@ -2250,7 +2252,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                     ],
                   ),
                 ),
-                if (isAccepted && !isDead) ...[
+                if (isAccepted && !isReadOnly) ...[
                   IconButton(
                     icon: const Icon(Icons.send, color: SteampunkTheme.brassGlow, size: 20),
                     padding: EdgeInsets.zero,
@@ -2274,7 +2276,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                       _loadInventory();
                     },
                   ),
-                ] else if (!isAccepted && !isDead) ...[
+                ] else if (!isAccepted && !isReadOnly) ...[
                   ElevatedButton(
                     onPressed: () async {
                       await _inventoryRepo.acceptItem(inv['id'] as String);
@@ -2297,7 +2299,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                         icon: const Icon(Icons.remove, size: 18),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
-                        onPressed: isDead ? null : () async {
+                        onPressed: isReadOnly ? null : () async {
                           await _inventoryRepo.updateDurability(inv['id'] as String, durability - 1);
                           _loadInventory();
                         },
@@ -2309,7 +2311,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                         icon: const Icon(Icons.add, size: 18),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
-                        onPressed: isDead ? null : () async {
+                        onPressed: isReadOnly ? null : () async {
                           await _inventoryRepo.updateDurability(inv['id'] as String, durability + 1);
                           _loadInventory();
                         },
@@ -2330,7 +2332,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                         icon: const Icon(Icons.remove, size: 18),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
-                        onPressed: isDead || qty <= 1 ? null : () async {
+                        onPressed: isReadOnly || qty <= 1 ? null : () async {
                           await _inventoryRepo.updateQuantity(inv['id'] as String, qty - 1);
                           _loadInventory();
                         },
@@ -2342,7 +2344,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                         icon: const Icon(Icons.add, size: 18),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
-                        onPressed: isDead ? null : () async {
+                        onPressed: isReadOnly ? null : () async {
                           await _inventoryRepo.updateQuantity(inv['id'] as String, qty + 1);
                           _loadInventory();
                         },
@@ -2461,6 +2463,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
   }
 
   Widget _buildAbilitiesTab(bool isDead) {
+    final isReadOnly = widget.isReadOnly || isDead;
     final habilidades = List<Map<String, dynamic>>.from(_charData!['habilidades'] ?? []);
     
     final passivas = [];
@@ -2509,11 +2512,11 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.edit, color: SteampunkTheme.copper),
-                        onPressed: isDead ? null : () => _showAbilityDialog(item, item['_index']),
+                        onPressed: isReadOnly ? null : () => _showAbilityDialog(item, item['_index']),
                       ),
                       IconButton(
                         icon: const Icon(Icons.delete, color: SteampunkTheme.bloodRed),
-                        onPressed: isDead ? null : () => _removeAbility(item['_index']),
+                        onPressed: isReadOnly ? null : () => _removeAbility(item['_index']),
                       ),
                     ],
                   ),
@@ -2537,7 +2540,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
           ],
         ),
       ),
-      floatingActionButton: isDead ? null : FloatingActionButton(
+      floatingActionButton: isReadOnly ? null : FloatingActionButton(
         backgroundColor: SteampunkTheme.copper,
         foregroundColor: SteampunkTheme.castIron,
         onPressed: () => _showAbilityDialog(),
@@ -2547,6 +2550,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
   }
 
   Widget _buildDiaryTab(bool isDead) {
+    final isReadOnly = widget.isReadOnly || isDead;
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Column(
@@ -2598,7 +2602,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
               ),
             ),
           ),
-          if (!isDead) ...[
+          if (!isReadOnly) ...[
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: () async {

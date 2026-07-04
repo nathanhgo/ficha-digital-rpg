@@ -92,6 +92,13 @@ Para uma compreensão aprofundada das decisões técnicas, consulte os documento
 
 
 ## Comando de build do APK
-```
+
+### Linux / macOS (Bash)
+```bash
 docker run --rm -v "$PWD":/app -v "$HOME/.android":/root/.android -w /app ghcr.io/cirruslabs/flutter:stable bash -c "git config --global --add safe.directory /sdks/flutter && flutter clean && flutter pub get && flutter build apk --release && chown -R \$(id -u):\$(id -g) /app/build /app/.dart_tool /app/.flutter-plugins /app/.flutter-plugins-dependencies 2>/dev/null || true"
+```
+
+### Windows (PowerShell)
+```powershell
+docker run --rm -v "${PWD}:/app" -v "${env:USERPROFILE}/.android:/root/.android" -w /app ghcr.io/cirruslabs/flutter:stable bash -c "git config --global --add safe.directory /sdks/flutter && flutter clean && flutter pub get && flutter build apk --release"
 ```
