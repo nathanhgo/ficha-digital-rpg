@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
+import '../../features/auth/presentation/forgot_password_screen.dart';
+import '../../features/auth/presentation/reset_password_screen.dart';
 import '../../features/campaign/presentation/campaigns_screen.dart';
 import '../../features/character/presentation/character_sheet_screen.dart';
 import '../../features/character/presentation/character_create_screen.dart';
@@ -14,13 +18,58 @@ import '../shell/role_based_tab_screen.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+/// Faz o [GoRouter] reavaliar o [redirect] sempre que o estado de auth do
+/// Supabase mudar (login/logout, mas também eventos assíncronos que não
+/// resultam de uma navegação explícita, como o retorno de um deep link de
+/// recuperação de senha ou de login com Google).
+class GoRouterRefreshStream extends ChangeNotifier {
+  GoRouterRefreshStream(Stream<AuthState> stream) {
+    _subscription = stream.listen((authState) {
+      if (authState.event == AuthChangeEvent.passwordRecovery) {
+        _pendingPasswordRecovery = true;
+      }
+      notifyListeners();
+    });
+  }
+
+  bool _pendingPasswordRecovery = false;
+
+  /// Retorna `true` uma única vez após um evento de recuperação de senha,
+  /// consumindo a flag para não forçar o redirect repetidamente.
+  bool consumePendingPasswordRecovery() {
+    final value = _pendingPasswordRecovery;
+    _pendingPasswordRecovery = false;
+    return value;
+  }
+
+  late final StreamSubscription<AuthState> _subscription;
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
+
+final _authRefreshStream = GoRouterRefreshStream(Supabase.instance.client.auth.onAuthStateChange);
+
 final GoRouter appRouter = GoRouter(
   initialLocation: '/login',
+  refreshListenable: _authRefreshStream,
   redirect: (context, state) {
     final session = Supabase.instance.client.auth.currentSession;
     final isGoingToAuth = state.matchedLocation == '/login' || state.matchedLocation == '/register';
+    final isGoingToPasswordFlow =
+        state.matchedLocation == '/forgot-password' || state.matchedLocation == '/reset-password';
 
-    if (session == null && !isGoingToAuth) {
+    // Evento PASSWORD_RECOVERY: independentemente de onde o usuário estiver
+    // (ex: acabou de abrir o app pelo link do e-mail), leva para a tela de
+    // nova senha.
+    if (_authRefreshStream.consumePendingPasswordRecovery()) {
+      return '/reset-password';
+    }
+
+    if (session == null && !isGoingToAuth && !isGoingToPasswordFlow) {
       return '/login';
     }
     if (session != null && isGoingToAuth) {
@@ -42,6 +91,14 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/register',
       builder: (context, state) => const RegisterScreen(),
+    ),
+    GoRoute(
+      path: '/forgot-password',
+      builder: (context, state) => const ForgotPasswordScreen(),
+    ),
+    GoRoute(
+      path: '/reset-password',
+      builder: (context, state) => const ResetPasswordScreen(),
     ),
 
     // ── Authenticated shell (BottomNav persists) ──────────────────────────

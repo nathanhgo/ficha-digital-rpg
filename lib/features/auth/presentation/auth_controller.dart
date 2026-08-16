@@ -102,6 +102,42 @@ class AuthController extends StateNotifier<AuthStateData> {
     state = AuthStateData(isAuthenticated: false, isLoading: false);
   }
 
+  Future<bool> sendPasswordRecoveryEmail(String email) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      await _repository.resetPasswordForEmail(email);
+      state = state.copyWith(isLoading: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> updatePassword(String newPassword) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      await _repository.updatePassword(newPassword);
+      state = state.copyWith(isLoading: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> loginWithGoogle() async {
+    state = state.copyWith(isLoading: true);
+    try {
+      await _repository.signInWithGoogle();
+      state = state.copyWith(isLoading: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
+    }
+  }
+
   @override
   void dispose() {
     _authSubscription?.cancel();

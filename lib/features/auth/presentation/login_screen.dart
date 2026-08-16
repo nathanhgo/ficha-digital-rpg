@@ -43,6 +43,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  void _submitGoogle() async {
+    // Abre o fluxo do Google no navegador; o retorno para o app (web ou via
+    // deep link no mobile) é tratado pelo listener global de auth no router.
+    final success = await ref.read(authControllerProvider.notifier).loginWithGoogle();
+    if (!success && mounted) {
+      final error = ref.read(authControllerProvider).error ?? 'Erro desconhecido';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Falha ao entrar com Google: $error'),
+          backgroundColor: SteampunkTheme.bloodRed,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
@@ -127,7 +142,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               return null;
                             },
                           ),
-                          const SizedBox(height: 24),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () {
+                                context.push('/forgot-password');
+                              },
+                              child: const Text(
+                                'Esqueci minha senha',
+                                style: TextStyle(color: SteampunkTheme.copper),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
                           if (authState.isLoading)
                             const Center(
                               child: CircularProgressIndicator(
@@ -135,9 +162,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                             )
                           else
-                            ElevatedButton(
-                              onPressed: _submit,
-                              child: const Text('ENTRAR'),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                ElevatedButton(
+                                  onPressed: _submit,
+                                  child: const Text('ENTRAR'),
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    const Expanded(child: Divider(color: Colors.white24)),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                                      child: Text(
+                                        'OU',
+                                        style: Theme.of(context).textTheme.bodyMedium,
+                                      ),
+                                    ),
+                                    const Expanded(child: Divider(color: Colors.white24)),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                OutlinedButton.icon(
+                                  onPressed: _submitGoogle,
+                                  icon: const Icon(Icons.g_mobiledata_rounded, size: 28),
+                                  label: const Text('Entrar com Google'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.white,
+                                    side: const BorderSide(color: SteampunkTheme.copper, width: 1.5),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                ),
+                              ],
                             ),
                         ],
                       ),
