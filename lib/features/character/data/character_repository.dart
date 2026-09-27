@@ -4,6 +4,23 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class CharacterRepository {
   final SupabaseClient _client = Supabase.instance.client;
 
+  /// Valor que a UI envia na rota quando o personagem não pertence a nenhuma
+  /// campanha (ficha "avulsa"). `campaign_id` é `uuid` no Postgres, então o
+  /// sentinela NUNCA pode chegar ao banco como texto — precisa virar `NULL`.
+  static const String noCampaignSentinel = 'avulso';
+
+  /// Normaliza o id de campanha vindo da UI/rota: devolve um UUID válido ou
+  /// `null` (personagem sem campanha). Sem isso, `''`/`'avulso'` eram enviados
+  /// direto para a coluna `uuid`, e o insert falhava com
+  /// "invalid input syntax for type uuid".
+  static String? normalizeCampaignId(String? raw) {
+    final value = raw?.trim();
+    if (value == null || value.isEmpty || value == noCampaignSentinel) {
+      return null;
+    }
+    return value;
+  }
+
   Future<List<Map<String, dynamic>>> fetchCharactersForUser(String userId) async {
     if (userId.isEmpty) return [];
     try {
@@ -52,7 +69,6 @@ class CharacterRepository {
     String? subclass,
     required String profession,
     required int dvValue,
-    required int campaignIdOrNull, // wait, campaignId is UUID in Postgres, so it must be a String?
     String? campaignId,
     required Map<String, int> attributes,
     required int maxFv,
@@ -69,7 +85,7 @@ class CharacterRepository {
         'subclass': subclass,
         'profession': profession,
         'dv_value': dvValue,
-        'campaign_id': campaignId,
+        'campaign_id': normalizeCampaignId(campaignId),
         'attributes': attributes,
         'current_fv': maxFv,
         'max_fv': maxFv,

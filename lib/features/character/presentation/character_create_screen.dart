@@ -148,8 +148,7 @@ class _CharacterCreateScreenState extends ConsumerState<CharacterCreateScreen> {
       subclass: _subclassController.text.isNotEmpty ? _subclassController.text.trim() : null,
       profession: _professionController.text.trim(),
       dvValue: dvValue,
-      campaignIdOrNull: 1, // Just dummy flag parameter
-      campaignId: widget.campaignId,
+      campaignId: CharacterRepository.normalizeCampaignId(widget.campaignId),
       attributes: _attributes,
       maxFv: maxFv,
       maxVigor: maxVigor,

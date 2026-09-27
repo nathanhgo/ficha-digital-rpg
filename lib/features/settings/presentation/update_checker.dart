@@ -6,6 +6,65 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/theme.dart';
 
+/// Versão semântica (major.minor.patch) + build (versionCode/CFBundleVersion).
+///
+/// Existe porque a comparação precisa ser feita sobre números, e não sobre
+/// strings: a tag do GitHub chega como `v1.0.8`, a versão instalada pode vir
+/// com sufixo de build (`1.0.7+6`) e o build number é um campo separado em
+/// [PackageInfo]. Comparar isso como texto (ou parsear cada parte com
+/// `int.tryParse(...) ?? 0`) gera falso positivo de "nova versão".
+class AppVersion implements Comparable<AppVersion> {
+  final int major;
+  final int minor;
+  final int patch;
+  final int build;
+
+  const AppVersion(this.major, this.minor, this.patch, [this.build = 0]);
+
+  static final RegExp _versionPattern = RegExp(r'(\d+(?:\.\d+)*)');
+  static final RegExp _buildPattern = RegExp(r'\+(\d+)');
+
+  /// Aceita `1.0.7`, `v1.0.7`, `1.0.7+6`, `1.0.7-beta.1`.
+  /// [buildOverride] (ex.: `packageInfo.buildNumber`) tem prioridade sobre o
+  /// sufixo `+N` escrito no texto.
+  static AppVersion parse(String raw, {String? buildOverride}) {
+    final text = raw.trim();
+    final match = _versionPattern.firstMatch(text);
+    final numbers = (match?.group(1) ?? '0')
+        .split('.')
+        .map((part) => int.tryParse(part) ?? 0)
+        .toList();
+
+    final build = int.tryParse(buildOverride?.trim() ?? '') ??
+        int.tryParse(_buildPattern.firstMatch(text)?.group(1) ?? '') ??
+        0;
+
+    return AppVersion(
+      numbers.isNotEmpty ? numbers[0] : 0,
+      numbers.length > 1 ? numbers[1] : 0,
+      numbers.length > 2 ? numbers[2] : 0,
+      build,
+    );
+  }
+
+  /// `false` quando nada foi reconhecido (versão vazia/ilegível). Nesse caso o
+  /// chamador deve preferir o silêncio a arriscar um aviso falso.
+  bool get isKnown => major > 0 || minor > 0 || patch > 0 || build > 0;
+
+  @override
+  int compareTo(AppVersion other) {
+    if (major != other.major) return major.compareTo(other.major);
+    if (minor != other.minor) return minor.compareTo(other.minor);
+    if (patch != other.patch) return patch.compareTo(other.patch);
+    return build.compareTo(other.build);
+  }
+
+  bool isNewerThan(AppVersion other) => compareTo(other) > 0;
+
+  @override
+  String toString() => '$major.$minor.$patch+$build';
+}
+
 class UpdateChecker {
   static const String _repoName = 'nathanhgo/ficha-digital-rpg';
 
@@ -25,12 +84,13 @@ class UpdateChecker {
 
       final tagName = json['tag_name'] as String?;
       final releaseNotes = json['body'] as String? ?? '';
-      
+
       if (tagName == null) return;
-      
-      // Clean up tag name (e.g., 'v1.0.1' -> '1.0.1')
-      final latestVersion = tagName.replaceAll('v', '');
-      
+
+      // Tag do GitHub -> versão remota (ex.: 'v1.0.8' -> 1.0.8+0).
+      final latest = AppVersion.parse(tagName);
+      final latestLabel = tagName.replaceFirst(RegExp(r'^[vV]'), '');
+
       // Usamos a página da release (html_url) em vez do link direto do APK.
       // O Android costuma cancelar downloads diretos de APKs via Intent (url_launcher),
       // mas funciona perfeitamente se o usuário clicar no link dentro da própria página do GitHub.
@@ -38,29 +98,26 @@ class UpdateChecker {
 
       if (downloadUrl == null || downloadUrl.isEmpty) return;
 
+      // Versão REAL do build instalado (versionName + versionCode), não a do
+      // pubspec. São fontes diferentes e podem divergir se a release for
+      // publicada sem bump de `version:` no pubspec.yaml.
       final packageInfo = await PackageInfo.fromPlatform();
-      final currentVersion = packageInfo.version;
+      final current = AppVersion.parse(
+        packageInfo.version,
+        buildOverride: packageInfo.buildNumber,
+      );
 
-      if (_isNewerVersion(currentVersion, latestVersion)) {
+      // Sem versão local legível não há como comparar com segurança: avisar aqui
+      // produziria o falso positivo de sempre ("nova versão" em todo boot).
+      if (!current.isKnown) return;
+
+      if (latest.isNewerThan(current)) {
         if (!context.mounted) return;
-        _showUpdateDialog(context, latestVersion, downloadUrl, releaseNotes);
+        _showUpdateDialog(context, latestLabel, downloadUrl, releaseNotes);
       }
     } catch (e) {
       debugPrint("Erro ao checar atualizações no GitHub: $e");
     }
-  }
-
-  static bool _isNewerVersion(String current, String latest) {
-    final v1 = current.split('.').map((e) => int.tryParse(e) ?? 0).toList();
-    final v2 = latest.split('.').map((e) => int.tryParse(e) ?? 0).toList();
-
-    for (int i = 0; i < v2.length; i++) {
-      final val1 = i < v1.length ? v1[i] : 0;
-      final val2 = v2[i];
-      if (val2 > val1) return true;
-      if (val2 < val1) return false;
-    }
-    return false;
   }
 
   static void _showUpdateDialog(BuildContext context, String version, String url, String notes) {
