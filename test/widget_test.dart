@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:despertar_caos_app/main.dart';
 import 'package:despertar_caos_app/features/auth/data/auth_repository.dart';
 import 'package:despertar_caos_app/features/auth/presentation/auth_controller.dart';
 import 'package:despertar_caos_app/features/auth/presentation/login_screen.dart';
@@ -27,6 +26,18 @@ class FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async {}
+
+  // Adicionados junto do fluxo de recuperação de senha e do login Google.
+  // Nenhum teste deste arquivo exercita esses caminhos (abrem navegador/OAuth,
+  // que não roda em teste de widget), por isso ficam vazios de propósito.
+  @override
+  Future<void> resetPasswordForEmail(String email) async {}
+
+  @override
+  Future<void> updatePassword(String newPassword) async {}
+
+  @override
+  Future<void> signInWithGoogle() async {}
 
   @override
   Future<Map<String, dynamic>?> fetchProfile(String userId) async => null;
