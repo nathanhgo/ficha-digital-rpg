@@ -7,6 +7,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import '../../auth/presentation/auth_controller.dart';
 import '../data/character_repository.dart';
+import '../data/attribute_bonus.dart';
+import '../data/attribute_bonus_repository.dart';
 import 'diary_editor_screen.dart';
 import '../../inventory/data/inventory_repository.dart';
 import '../../../core/theme/theme.dart';
@@ -150,9 +152,11 @@ class CharacterSheetScreen extends ConsumerStatefulWidget {
 class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
   final _charRepo = CharacterRepository();
   final _inventoryRepo = InventoryRepository();
+  final _bonusRepo = AttributeBonusRepository();
 
   Map<String, dynamic>? _charData;
   List<Map<String, dynamic>> _inventory = [];
+  List<AttributeBonus> _bonuses = [];
   bool _isLoading = true;
 
   Timer? _diaryDebounce;
@@ -190,6 +194,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
       _charData = char;
       _diaryController.text = char['diary'] ?? '';
       await _loadInventory();
+      await _loadBonuses();
     }
     setState(() => _isLoading = false);
   }
@@ -200,6 +205,22 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
     setState(() {
       _inventory = items;
     });
+  }
+
+  Future<void> _loadBonuses() async {
+    if (_charData == null) return;
+    final bonuses = await _bonusRepo.fetchBonuses(_charData!['id'] as String);
+    if (!mounted) return;
+    setState(() {
+      _bonuses = bonuses;
+    });
+  }
+
+  /// Soma dos bônus cadastrados para um atributo (ex.: 'FOR').
+  int _bonusTotalFor(String attr) {
+    return _bonuses
+        .where((b) => b.attribute == attr)
+        .fold(0, (sum, b) => sum + b.amount);
   }
 
   final Map<String, List<String>> _attributeSkills = const {
@@ -553,7 +574,7 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: SteampunkTheme.castIron,
-        title: Text('Editar $attr', style: const TextStyle(color: SteampunkTheme.copper)),
+        title: Text('Editar $attr (Base)', style: const TextStyle(color: SteampunkTheme.copper)),
         content: TextField(
           controller: ctrl,
           keyboardType: TextInputType.number,
@@ -575,6 +596,233 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
             child: const Text('SALVAR', style: TextStyle(color: SteampunkTheme.copper)),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Siglas dos atributos da ficha, na mesma ordem exibida na aba ATRIBUTOS.
+  List<String> _attributeKeysForBonus() {
+    final keys = Map<String, dynamic>.from(_charData?['attributes'] as Map? ?? {}).keys.toList();
+    if (keys.isEmpty) return _attributeSkills.keys.toList();
+    return keys;
+  }
+
+  Future<void> _onAddBonus(String source, String attribute, int amount) async {
+    if (_charData == null) return;
+    if (widget.isReadOnly || _charData!['is_dead'] == true) return;
+
+    final created = await _bonusRepo.addBonus(
+      characterId: _charData!['id'] as String,
+      source: source,
+      attribute: attribute,
+      amount: amount,
+    );
+
+    if (!mounted) return;
+    if (created == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível salvar o bônus. Verifique sua conexão.'),
+          backgroundColor: SteampunkTheme.bloodRed,
+        ),
+      );
+      return;
+    }
+    setState(() {
+      _bonuses = [..._bonuses, created];
+    });
+  }
+
+  Future<void> _onRemoveBonus(AttributeBonus bonus) async {
+    if (widget.isReadOnly) return;
+
+    final ok = await _bonusRepo.deleteBonus(bonus.id);
+
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível remover o bônus. Verifique sua conexão.'),
+          backgroundColor: SteampunkTheme.bloodRed,
+        ),
+      );
+      return;
+    }
+    setState(() {
+      _bonuses = _bonuses.where((b) => b.id != bonus.id).toList();
+    });
+  }
+
+  /// Sheet com a lista de bônus cadastrados + botão para adicionar/remover.
+  void _showBonusesSheet() {
+    final isReadOnly = _charData?['is_dead'] == true || widget.isReadOnly;
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: SteampunkTheme.castIron,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetCtx, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'BÔNUS DE ATRIBUTOS',
+                      style: GoogleFonts.cinzel(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: SteampunkTheme.copper,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle, color: SteampunkTheme.copper),
+                      onPressed: isReadOnly
+                          ? null
+                          : () async {
+                              await _showAddBonusDialog();
+                              if (sheetCtx.mounted) setSheetState(() {});
+                            },
+                    ),
+                  ],
+                ),
+                const Divider(color: SteampunkTheme.copper),
+                if (_bonuses.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Text(
+                      'Nenhum bônus cadastrado. Toque em + para adicionar (ex: Raça, Equipamento).',
+                      style: TextStyle(color: Colors.white54),
+                    ),
+                  )
+                else
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 320),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: _bonuses.length,
+                      itemBuilder: (ctx, idx) {
+                        final bonus = _bonuses[idx];
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(
+                            bonus.amount >= 0 ? Icons.arrow_upward : Icons.arrow_downward,
+                            color: bonus.amount >= 0 ? Colors.green : SteampunkTheme.bloodRed,
+                          ),
+                          title: Text(bonus.source, style: GoogleFonts.ebGaramond(fontSize: 18)),
+                          subtitle: Text('${bonus.attribute} (${bonus.amountLabel})'),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete, color: SteampunkTheme.bloodRed),
+                            onPressed: isReadOnly
+                                ? null
+                                : () async {
+                                    await _onRemoveBonus(bonus);
+                                    if (sheetCtx.mounted) setSheetState(() {});
+                                  },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                const Text(
+                  'O valor final de cada atributo é o valor BASE somado a estes bônus.',
+                  style: TextStyle(fontSize: 12, color: Colors.white54),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Dialog com os 3 campos do bônus: fonte, atributo e quantidade.
+  Future<void> _showAddBonusDialog() async {
+    final sourceCtrl = TextEditingController();
+    final amountCtrl = TextEditingController(text: '1');
+    final formKey = GlobalKey<FormState>();
+    final attributeKeys = _attributeKeysForBonus();
+    String selectedAttr = attributeKeys.isNotEmpty ? attributeKeys.first : 'CON';
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: SteampunkTheme.castIron,
+          title: const Text('ADICIONAR BÔNUS', style: TextStyle(color: SteampunkTheme.copper)),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: sourceCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Fonte',
+                    hintText: 'Ex: Raça: Elfo, Equipamento: Anel',
+                  ),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Informe a fonte do bônus' : null,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedAttr,
+                  dropdownColor: SteampunkTheme.leatherBark,
+                  decoration: const InputDecoration(labelText: 'Atributo'),
+                  items: attributeKeys
+                      .map((a) => DropdownMenuItem(value: a, child: Text(a)))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) setDialogState(() => selectedAttr = v);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: amountCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(signed: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Quantidade',
+                    hintText: 'Ex: 2 ou -1',
+                  ),
+                  validator: (v) {
+                    final parsed = int.tryParse(v?.trim() ?? '');
+                    if (parsed == null) return 'Informe um número inteiro';
+                    if (parsed == 0) return 'A quantidade não pode ser zero';
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('CANCELAR'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: SteampunkTheme.copper,
+                foregroundColor: SteampunkTheme.castIron,
+              ),
+              onPressed: () async {
+                if (!(formKey.currentState?.validate() ?? false)) return;
+                final amount = int.tryParse(amountCtrl.text.trim()) ?? 0;
+                final source = sourceCtrl.text.trim();
+                await _onAddBonus(source, selectedAttr, amount);
+                if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+              },
+              child: const Text('ADICIONAR'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1621,6 +1869,16 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                     style: TextStyle(color: SteampunkTheme.bloodRed, fontWeight: FontWeight.bold),
                   ),
                 ),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: SteampunkTheme.copper,
+                  foregroundColor: SteampunkTheme.castIron,
+                ),
+                onPressed: _showBonusesSheet,
+                icon: const Icon(Icons.tune, size: 18),
+                label: Text('BÔNUS DE ATRIBUTOS (${_bonuses.length})'),
+              ),
             ],
           ),
         ),
@@ -1631,7 +1889,9 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
             itemBuilder: (context, idx) {
         final attr = attributes.keys.elementAt(idx);
         final val = int.tryParse(attributes[attr].toString()) ?? 10;
-        final mod = (val - 10) ~/ 2;
+        final bonus = _bonusTotalFor(attr);
+        final effectiveVal = val + bonus;
+        final mod = (effectiveVal - 10) ~/ 2;
 
         final groupSkills = _attributeSkills[attr] ?? [];
         int groupTotalSpent = 0;
@@ -1678,13 +1938,26 @@ class _CharacterSheetScreenState extends ConsumerState<CharacterSheetScreen> {
                         onTap: isReadOnly ? null : () => _editAttributeValue(attr, val),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                          child: Text(
-                            'VAL: $val (MOD: ${mod >= 0 ? '+' : ''}$mod)',
-                            style: GoogleFonts.specialElite(
-                              fontSize: 14, 
-                              decoration: TextDecoration.underline,
-                              color: isReadOnly ? Colors.grey : Colors.white,
-                            ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'VAL: $effectiveVal (MOD: ${mod >= 0 ? '+' : ''}$mod)',
+                                style: GoogleFonts.specialElite(
+                                  fontSize: 14, 
+                                  decoration: TextDecoration.underline,
+                                  color: isReadOnly ? Colors.grey : Colors.white,
+                                ),
+                              ),
+                              if (bonus != 0)
+                                Text(
+                                  'BASE: $val (BÔNUS: ${bonus > 0 ? '+' : ''}$bonus)',
+                                  style: GoogleFonts.specialElite(
+                                    fontSize: 11,
+                                    color: bonus > 0 ? Colors.green : SteampunkTheme.bloodRed,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ),
